@@ -1,0 +1,43 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+env/
+**/env/
+**/env/
+
+# Docker related files
+# Ignore Docker and docker-compose related files
+Dockerfile
+docker-compose.yml
+*.dockerfile
+*.docker-compose.yml
+docker-compose.override.yml
+
+# Ignore Docker images and containers
+.docker/
+docker-compose.override.yml
+
+# Ignore build and deployment artifacts
+**/build/
+**/dist/
+**/__pycache__/
+
+# Ignore log files
+*.log
+
+# Ignore compiled files
+*.pot
+
+# Ignore SQLite database file
+db.sqlite3
+
+# Ignore media files (if applicable)
+media/
+
+# Other
+*.log
