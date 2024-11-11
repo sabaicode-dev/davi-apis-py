@@ -18,13 +18,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      - name: Verify docker-compose.yml Exists
+        run: |
+          # Ensure docker-compose.yml is in the root directory
+          if [ ! -f docker-compose.yml ]; then
+            echo "Error: docker-compose.yml not found in the root directory."
+            exit 1
+          fi
+
       - name: Compress files for transfer
         run: |
           mkdir temp_deploy_dir
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
-          # Verify that docker-compose.yml is in temp_deploy_dir
+          # Verify docker-compose.yml is in temp_deploy_dir after rsync
           if [ ! -f temp_deploy_dir/docker-compose.yml ]; then
-            echo "Error: docker-compose.yml not found in temp_deploy_dir"
+            echo "Error: docker-compose.yml not found in temp_deploy_dir after rsync."
             exit 1
           fi
           tar -czf app.tar.gz -C temp_deploy_dir .
