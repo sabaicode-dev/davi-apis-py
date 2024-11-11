@@ -28,10 +28,18 @@ jobs:
             exit 1
           fi
 
-      # Step 4: Compress project files for transfer with ignore option
+      # Step 4: Copy project files to a temporary directory and compress
       - name: Compress files for transfer
         run: |
-          tar --ignore-failed-read -czf app.tar.gz --exclude='.git' --exclude='.github' .
+          # Create a temp directory and copy all project files into it
+          mkdir -p temp_dir
+          rsync -a --exclude='.git' --exclude='.github' . temp_dir/
+          
+          # Compress the temp directory into app.tar.gz
+          tar -czf app.tar.gz -C temp_dir .
+          
+          # Clean up temp directory
+          rm -rf temp_dir
 
       # Step 5: Copy compressed file to EC2
       - name: Copy files to EC2
