@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  # Deploy only when pushing to the main branch
+      - main # Deploy only when pushing to the main branch
 
 jobs:
   deploy:
@@ -37,6 +37,9 @@ jobs:
             mkdir app
             tar -xzf app.tar.gz -C app  # Extract files into app directory
             cd app
+            # Update package list and install Docker Compose
+            sudo apt update
+            sudo apt install -y docker-compose
             docker-compose down  # Stop existing containers
             docker-compose up --build -d  # Rebuild and run in detached mode
           EOF
