@@ -10,42 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Set up SSH to access EC2
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Search for docker-compose.yml
-        run: |
-          echo "Searching for docker-compose.yml in the repository..."
-          find . -name "docker-compose.yml" -print || echo "Error: docker-compose.yml not found in repository."
-          
-      - name: Verify docker-compose.yml Path
-        run: |
-          # Set this path after verifying the location from the search above
-          DOCKER_COMPOSE_PATH="docker-compose.yml"  # Replace with actual path if different
-          if [ ! -f $DOCKER_COMPOSE_PATH ]; then
-            echo "Error: docker-compose.yml not found at $DOCKER_COMPOSE_PATH."
-            exit 1
-          fi
-
+      # Compress files for transfer
       - name: Compress files for transfer
         run: |
-          DOCKER_COMPOSE_PATH="docker-compose.yml"  # Set this to actual path after confirming location
-          mkdir temp_deploy_dir
-          rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
-          # Copy docker-compose.yml manually if it's in a subdirectory
-          cp $DOCKER_COMPOSE_PATH temp_deploy_dir/
-          tar -czf app.tar.gz -C temp_deploy_dir .
-          rm -rf temp_deploy_dir  # Clean up temp directory
+          tar -czf app.tar.gz --exclude='.git' --exclude='.github' .
 
-      - name: Copy compressed files to EC2
+      # Copy compressed file to EC2
+      - name: Copy files to EC2
         run: |
           scp -o StrictHostKeyChecking=no app.tar.gz ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:/home/${{ secrets.AWS_EC2_USER }}/
 
+      # Deploy on EC2
       - name: Deploy on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'EOF'
@@ -54,19 +39,18 @@ jobs:
             mkdir app
             tar -xzf app.tar.gz -C app  # Extract files into app directory
             cd app
-            # List contents to verify docker-compose.yml is present
-            echo "Listing contents of /home/${{ secrets.AWS_EC2_USER }}/app:"
+            # List contents to confirm docker-compose.yml is present
             ls -la
             
-            # Check if docker-compose.yml exists
-            if [ ! -f docker-compose.yml ]; then
-              echo "Error: docker-compose.yml not found in /home/${{ secrets.AWS_EC2_USER }}/app"
-              exit 1
+            # Install Docker Compose if not already installed
+            if ! command -v docker-compose &> /dev/null
+            then
+              echo "Docker Compose not found, installing..."
+              sudo apt update
+              sudo apt install -y docker-compose
             fi
-
-            # Update package list and install Docker Compose
-            sudo apt update
-            sudo apt install -y docker-compose
+            
+            # Run Docker Compose
             docker-compose down  # Stop existing containers
             docker-compose up --build -d  # Rebuild and run in detached mode
           EOF
