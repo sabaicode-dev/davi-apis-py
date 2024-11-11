@@ -18,13 +18,15 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Locate docker-compose.yml
+      - name: Search for docker-compose.yml
         run: |
-          echo "Searching for docker-compose.yml..."
-          find . -name "docker-compose.yml" || echo "Error: docker-compose.yml not found."
-          # Adjust the DOCKER_COMPOSE_PATH variable once you know the exact path.
-          # Replace "path/to/docker-compose.yml" with the actual location in your repo
-          DOCKER_COMPOSE_PATH="path/to/docker-compose.yml"
+          echo "Searching for docker-compose.yml in the repository..."
+          find . -name "docker-compose.yml" -print || echo "Error: docker-compose.yml not found in repository."
+          
+      - name: Verify docker-compose.yml Path
+        run: |
+          # Set this path after verifying the location from the search above
+          DOCKER_COMPOSE_PATH="docker-compose.yml"  # Replace with actual path if different
           if [ ! -f $DOCKER_COMPOSE_PATH ]; then
             echo "Error: docker-compose.yml not found at $DOCKER_COMPOSE_PATH."
             exit 1
@@ -32,7 +34,7 @@ jobs:
 
       - name: Compress files for transfer
         run: |
-          DOCKER_COMPOSE_PATH="path/to/docker-compose.yml"  # Set this to the actual path after locating
+          DOCKER_COMPOSE_PATH="docker-compose.yml"  # Set this to actual path after confirming location
           mkdir temp_deploy_dir
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
           # Copy docker-compose.yml manually if it's in a subdirectory
