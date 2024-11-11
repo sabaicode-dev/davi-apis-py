@@ -32,7 +32,6 @@ jobs:
       - name: Compress files for transfer
         run: |
           mkdir temp_deploy_dir
-          # Copy all necessary files, including docker-compose.yml, to temp directory
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
           tar -czf app.tar.gz -C temp_deploy_dir .
           rm -rf temp_deploy_dir  # Clean up temp directory
@@ -54,6 +53,12 @@ jobs:
             # List contents to confirm docker-compose.yml is present
             ls -la
 
+            # Add user to the docker group
+            sudo usermod -aG docker $USER
+            
+            # Restart Docker service to apply group changes (optional, if needed)
+            sudo systemctl restart docker
+
             # Install Docker Compose if not already installed
             if ! command -v docker-compose &> /dev/null
             then
@@ -61,8 +66,8 @@ jobs:
               sudo apt update
               sudo apt install -y docker-compose
             fi
-            
-            # Run Docker Compose
+
+            # Run Docker Compose with the updated permissions
             docker-compose down  # Stop existing containers
             docker-compose up --build -d  # Rebuild and run in detached mode
           EOF
