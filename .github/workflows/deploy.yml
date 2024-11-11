@@ -20,21 +20,20 @@ jobs:
 
       - name: Verify docker-compose.yml Exists
         run: |
-          # Ensure docker-compose.yml is in the root directory
-          if [ ! -f docker-compose.yml ]; then
-            echo "Error: docker-compose.yml not found in the root directory."
+          # Update this path based on where docker-compose.yml is located in your repo
+          DOCKER_COMPOSE_PATH="config/docker-compose.yml"
+          if [ ! -f $DOCKER_COMPOSE_PATH ]; then
+            echo "Error: docker-compose.yml not found at $DOCKER_COMPOSE_PATH."
             exit 1
           fi
 
       - name: Compress files for transfer
         run: |
+          DOCKER_COMPOSE_PATH="config/docker-compose.yml"
           mkdir temp_deploy_dir
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
-          # Verify docker-compose.yml is in temp_deploy_dir after rsync
-          if [ ! -f temp_deploy_dir/docker-compose.yml ]; then
-            echo "Error: docker-compose.yml not found in temp_deploy_dir after rsync."
-            exit 1
-          fi
+          # Copy docker-compose.yml manually if it's in a subdirectory
+          cp $DOCKER_COMPOSE_PATH temp_deploy_dir/
           tar -czf app.tar.gz -C temp_deploy_dir .
           rm -rf temp_deploy_dir  # Clean up temp directory
 
