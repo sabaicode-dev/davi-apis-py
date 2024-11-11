@@ -20,15 +20,27 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      # Locate docker-compose.yml
+      - name: Locate docker-compose.yml
+        run: |
+          echo "Searching for docker-compose.yml in the repository..."
+          find . -name "docker-compose.yml" -print || echo "Error: docker-compose.yml not found."
+
       # Compress files for transfer
       - name: Compress files for transfer
         run: |
+          # Update the path to docker-compose.yml based on the output from the locate step
+          DOCKER_COMPOSE_PATH="./docker-compose.yml"  # Replace with actual path if needed
           mkdir temp_deploy_dir
-          # Use rsync to copy all files except .git and .github
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
-          
-          # Explicitly copy docker-compose.yml to ensure it is included
-          cp docker-compose.yml temp_deploy_dir/
+
+          # Copy docker-compose.yml to ensure it’s included in the deployment
+          if [ -f $DOCKER_COMPOSE_PATH ]; then
+            cp $DOCKER_COMPOSE_PATH temp_deploy_dir/
+          else
+            echo "Error: docker-compose.yml not found at $DOCKER_COMPOSE_PATH"
+            exit 1
+          fi
 
           # Verify docker-compose.yml is in temp_deploy_dir
           if [ ! -f temp_deploy_dir/docker-compose.yml ]; then
