@@ -28,13 +28,10 @@ jobs:
             exit 1
           fi
 
-      # Step 4: Compress files for transfer
+      # Step 4: Compress project files for transfer
       - name: Compress files for transfer
         run: |
-          mkdir temp_deploy_dir
-          rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
-          tar -czf app.tar.gz -C temp_deploy_dir .
-          rm -rf temp_deploy_dir  # Clean up temp directory
+          tar -czf app.tar.gz --exclude='.git' --exclude='.github' .
 
       # Step 5: Copy compressed file to EC2
       - name: Copy files to EC2
@@ -50,24 +47,15 @@ jobs:
             mkdir app
             tar -xzf app.tar.gz -C app  # Extract files into app directory
             cd app
-            # List contents to confirm docker-compose.yml is present
-            ls -la
 
-            # Add user to the docker group
-            sudo usermod -aG docker $USER
-            
-            # Restart Docker service to apply group changes (optional, if needed)
-            sudo systemctl restart docker
-
-            # Install Docker Compose if not already installed
+            # Check if Docker Compose is installed, install if missing
             if ! command -v docker-compose &> /dev/null
             then
               echo "Docker Compose not found, installing..."
-              sudo apt update
-              sudo apt install -y docker-compose
+              sudo apt update && sudo apt install -y docker-compose
             fi
 
-            # Run Docker Compose with the updated permissions
+            # Deploy with Docker Compose
             docker-compose down  # Stop existing containers
             docker-compose up --build -d  # Rebuild and run in detached mode
           EOF
