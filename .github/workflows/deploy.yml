@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main # Deploy only when pushing to the main branch
+      - main  # Deploy only when pushing to the main branch
 
 jobs:
   deploy:
@@ -37,6 +37,16 @@ jobs:
             mkdir app
             tar -xzf app.tar.gz -C app  # Extract files into app directory
             cd app
+            # List contents to verify docker-compose.yml is present
+            echo "Listing contents of /home/${{ secrets.AWS_EC2_USER }}/app:"
+            ls -la
+            
+            # Check if docker-compose.yml exists
+            if [ ! -f docker-compose.yml ]; then
+              echo "Error: docker-compose.yml not found in /home/${{ secrets.AWS_EC2_USER }}/app"
+              exit 1
+            fi
+
             # Update package list and install Docker Compose
             sudo apt update
             sudo apt install -y docker-compose
