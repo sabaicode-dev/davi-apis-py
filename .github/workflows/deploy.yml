@@ -20,7 +20,7 @@ jobs:
 
       - name: Compress files for transfer
         run: |
-          tar -czf app.tar.gz . --exclude='.git' --exclude='.github'  # Exclude unnecessary files for deployment
+          tar --exclude=.git --exclude=.github -czf app.tar.gz .
 
       - name: Copy compressed files to EC2
         run: |
