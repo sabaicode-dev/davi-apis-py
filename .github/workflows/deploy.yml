@@ -22,8 +22,13 @@ jobs:
         run: |
           mkdir temp_deploy_dir
           rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
+          # Verify that docker-compose.yml is in temp_deploy_dir
+          if [ ! -f temp_deploy_dir/docker-compose.yml ]; then
+            echo "Error: docker-compose.yml not found in temp_deploy_dir"
+            exit 1
+          fi
           tar -czf app.tar.gz -C temp_deploy_dir .
-          rm -rf temp_deploy_dir
+          rm -rf temp_deploy_dir  # Clean up temp directory
 
       - name: Copy compressed files to EC2
         run: |
