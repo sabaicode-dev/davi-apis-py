@@ -10,6 +10,8 @@ env/
 **/env/
 **/env/
 
+scripts
+
 # Docker related files
 # Ignore Docker and docker-compose related files
 Dockerfile

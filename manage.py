@@ -5,7 +5,7 @@ import sys
 
 from dotenv import load_dotenv
 
-load_dotenv()  # Load environment variables
+load_dotenv('.env.development')  # Load environment variables
 
 print("MongoDB URI:", os.getenv('MONGODB_URI'))  # This will print the MongoDB URI for verification
 print("Database Name:", os.getenv('MONGODB_DB'))  # This will print the database name
