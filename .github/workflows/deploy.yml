@@ -28,10 +28,10 @@ jobs:
             exit 1
           fi
 
-      # Step 4: Compress project files for transfer
+      # Step 4: Compress project files for transfer with ignore option
       - name: Compress files for transfer
         run: |
-          tar -czf app.tar.gz --exclude='.git' --exclude='.github' .
+          tar --ignore-failed-read -czf app.tar.gz --exclude='.git' --exclude='.github' .
 
       # Step 5: Copy compressed file to EC2
       - name: Copy files to EC2
