@@ -23,7 +23,10 @@ jobs:
       # Compress files for transfer
       - name: Compress files for transfer
         run: |
-          tar -czf app.tar.gz --exclude='.git' --exclude='.github' .
+          mkdir temp_deploy_dir
+          rsync -av --exclude='.git' --exclude='.github' . temp_deploy_dir/
+          tar -czf app.tar.gz -C temp_deploy_dir .
+          rm -rf temp_deploy_dir  # Clean up temp directory
 
       # Copy compressed file to EC2
       - name: Copy files to EC2
