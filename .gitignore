@@ -14,15 +14,14 @@ scripts
 
 # Docker related files
 # Ignore Docker and docker-compose related files
-Dockerfile
-docker-compose.yml
-*.dockerfile
-*.docker-compose.yml
-docker-compose.override.yml
+# Dockerfile  # Uncomment this line if you want to ignore Dockerfile, otherwise leave it as it is.
+# docker-compose.yml
+# *.docker-compose.yml
+# docker-compose.override.yml
 
 # Ignore Docker images and containers
 .docker/
-docker-compose.override.yml
+# docker-compose.override.yml  # Duplicate line removed
 
 # Ignore build and deployment artifacts
 **/build/
