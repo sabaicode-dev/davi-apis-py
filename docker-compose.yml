@@ -5,17 +5,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: bash -c "python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: bash -c "mkdir -p /app/server/files && python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
-      - ./server/files:/app/server/files # Ensure files can be stored
+      - /home/ubuntu/app/server/files:/app/server/files # Use an absolute path to avoid issues
     ports:
       - "8000:8000"
     env_file:
-      - .env.stage # Ensure this file is correctly configured
+      - .env.stage
     depends_on:
       - db
-    user: "${UID}:${GID}" # Run as the current user's UID and GID for permissions
+    user: "${UID}:${GID}"
 
   db:
     image: mongo:latest
