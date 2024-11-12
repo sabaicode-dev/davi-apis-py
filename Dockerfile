@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Set environment variables for the Django application
-COPY .env.development /app/.env
+COPY .env.stage /app/.env
 
 # Expose the port that the app runs on
 EXPOSE 8000

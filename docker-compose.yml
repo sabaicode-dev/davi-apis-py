@@ -12,7 +12,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env.development  # Ensure this file is correctly configured
+      - .env.stage  # Ensure this file is correctly configured
     depends_on:
       - db
 
