@@ -28,55 +28,74 @@ jobs:
             exit 1
           fi
 
-      # Step 4: Copy project files to a temporary directory and compress
-      - name: Compress files for transfer
+      # Step 4: Compress project files and upload to EC2
+      - name: Compress and upload project to EC2
         run: |
-          # Create a temp directory and copy all project files into it
+          # Create a temporary directory and copy all project files (excluding unwanted files)
           mkdir -p temp_dir
           rsync -a --exclude='.git' --exclude='.github' . temp_dir/
           
           # Compress the temp directory into app.tar.gz
-          tar -czf app.tar.gz -C temp_dir .          
-          # Clean up temp directory
+          tar -czf app.tar.gz -C temp_dir .  
+          
+          # Clean up the temp directory
           rm -rf temp_dir
 
-      # Step 5: Copy compressed file to EC2
-      - name: Copy files to EC2
-        run: |
+          # Copy the compressed tar file to EC2 instance
           scp -o StrictHostKeyChecking=no app.tar.gz ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:/home/${{ secrets.AWS_EC2_USER }}/
 
-      # Step 6: Deploy on EC2
+      # Step 5: SSH into EC2, setup environment, and deploy
       - name: Deploy on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'EOF'
+            # Navigate to the app directory
             cd /home/${{ secrets.AWS_EC2_USER }}
-            rm -rf app  # Remove old app directory to avoid conflicts
+
+            # Remove the old app folder and extract the new code
+            rm -rf app
             mkdir app
-            tar -xzf app.tar.gz -C app  # Extract files into app directory
+            tar -xzf app.tar.gz -C app
             cd app
 
-            # Install Docker if not installed
-            if ! command -v docker &> /dev/null
-            then
-              echo "Docker not found, installing..."
+            # Install dependencies and create virtual environment
+            if ! command -v python3 &> /dev/null; then
+              echo "Python 3 not found, installing..."
               sudo apt update
+              sudo apt install -y python3 python3-pip python3-venv
+            fi
+
+            # Set up virtual environment (optional, but recommended)
+            if [ ! -d "env" ]; then
+              python3 -m venv env  # Create the virtual environment
+            fi
+            source env/bin/activate  # Activate the virtual environment
+
+            # Install dependencies
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Run migrations (this should automatically detect your MongoDB setup)
+            python manage.py migrate --noinput
+
+            # Check if Docker is installed
+            if ! command -v docker &> /dev/null; then
+              echo "Docker not found, installing..."
               sudo apt install -y docker.io
               sudo usermod -aG docker $USER
               newgrp docker
             fi
 
-            # Install Docker Compose if not installed
-            if ! command -v docker-compose &> /dev/null
-            then
+            # Check if Docker Compose is installed
+            if ! command -v docker-compose &> /dev/null; then
               echo "Docker Compose not found, installing..."
-              sudo apt update && sudo apt install -y docker-compose
+              sudo apt install -y docker-compose
             fi
 
-            # Ensure required directories and permissions
+            # Ensure directories are in place
             mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
-            chmod -R 777 /home/${{ secrets.AWS_EC2_USER }}/app/server/files  # Use 777 for testing
+            chmod -R 755 /home/${{ secrets.AWS_EC2_USER }}/app/server/files
 
-            # Deploy with Docker Compose
-            docker-compose down  # Stop existing containers
-            docker-compose up --build -d  # Rebuild and run in detached mode
+            # Deploy with Docker Compose (this will rebuild and start the containers)
+            docker-compose down  # Stop any running containers
+            docker-compose up --build -d  # Rebuild and start containers in detached mode
           EOF
