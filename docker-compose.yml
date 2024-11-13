@@ -8,7 +8,8 @@ services:
     command: bash -c "mkdir -p /app/server/files && python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
-      - /home/ubuntu/app/server/files:/app/server/files # Use an absolute path to avoid issues
+      - /home/ubuntu/app/server/files:/app/server/files  # Ensure this volume mount is correct and accessible
+      - /home/ubuntu/app/server/images:/app/server/images  # Ensure this volume mount is correct and accessible
     ports:
       - "8000:8000"
     env_file:
