@@ -1,3 +1,4 @@
+import uuid
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
@@ -9,25 +10,53 @@ import os
 from utils import file_util
 from file.models import File
 import file.api.service as service
-import uuid
 from pagination.pagination import Pagination
+from bson import ObjectId
 
 class FileViewAllApiView(APIView):
     pagination_class = Pagination
 
     def get(self, request, *args, **kwargs):
+        file_queryset = File.objects.all().order_by("-created_at")
+        paginator = self.pagination_class()
+        result_page = paginator.paginate_queryset(file_queryset, request)
+        serializer = FileResponeSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class FileUploadView(APIView):
+    parser_class = (FileUploadParser,)
+
+    def post(self, request, *args, **kwargs):
+        # Debug: Print the request data to verify its contents
+        print("Request data:", request.data)
+        
+        if 'file' not in request.data:
+            return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file extension
+        file_extension = file_util.get_file_extension(str(request.data['file']))
+        if file_extension not in file_util.ALLOWED_EXTENSIONS_FILE:
+            allowed_exts = ', '.join(file_util.ALLOWED_EXTENSIONS_FILE)
+            return Response(
+                f"Invalid file extension '{file_extension}'. Allowed extensions are: {allowed_exts}.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Handle file upload
         try:
-            # Temporarily remove filters to test if the issue persists
-            file_queryset = File.objects.all().order_by("-created_at")
-
-            paginator = self.pagination_class()
-            result_page = paginator.paginate_queryset(file_queryset, request)
-            serializer = FileResponeSerializer(result_page, many=True)
-
-            return paginator.get_paginated_response(serializer.data)
-
+            data = file_util.handle_uploaded_file(request.data['file'])
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Validate and save with serializer
+        serializer = CreateUserSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class FileUploadImageView(APIView):
     parser_class = (FileUploadParser,)
@@ -37,11 +66,15 @@ class FileUploadImageView(APIView):
         file_extension = file_util.get_file_extension(str(request.data['file']))
 
         if file_extension.lower() not in (allowed.lower() for allowed in file_util.ALLOWED_EXTENSIONS_IMAGE):
-            return Response(f"Invalid file extension '{file_extension}'. Allowed extensions are: {', '.join(file_util.ALLOWED_EXTENSIONS_IMAGE)}.",
-                            status=status.HTTP_400_BAD_REQUEST)
+            allowed_exts = ', '.join(file_util.ALLOWED_EXTENSIONS_IMAGE)
+            return Response(
+                f"Invalid file extension '{file_extension}'. Allowed extensions are: {allowed_exts}.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         data = file_util.handle_uploaded_file_image(request.data['file'])
         return Response(data=data, status=status.HTTP_200_OK)
+
 
 class ViewHeaderView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -51,24 +84,6 @@ class ViewHeaderView(APIView):
         result = service.load_datasetHeader(filename=filename)
         return Response(result)
 
-class FileUploadView(APIView):
-    parser_class = (FileUploadParser,)
-
-    def post(self, request, *args, **kwargs):
-        file_extension = file_util.get_file_extension(str(request.data['file']))
-
-        if file_extension not in file_util.ALLOWED_EXTENSIONS_FILE:
-            return Response(f"Invalid file extension '{file_extension}'. Allowed extensions are: {', '.join(file_util.ALLOWED_EXTENSIONS_FILE)}.",
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        data = file_util.handle_uploaded_file(request.data['file'])
-        serializer = CreateUserSerializer(data=data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-        return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class FileViewImageByName(APIView):
     permission_classes = [permissions.AllowAny]
@@ -81,6 +96,7 @@ class FileViewImageByName(APIView):
         else:
             return Response("Image not found", status=status.HTTP_404_NOT_FOUND)
 
+
 class FindFileByUserView(APIView):
     pagination_class = Pagination
 
@@ -92,7 +108,6 @@ class FindFileByUserView(APIView):
         filename = validated_data.get("filename")
         type_file = validated_data.get("type")
 
-        # Get all files, since we are not filtering by created_by
         file_queryset = File.objects.filter(is_deleted=False, is_sample=False).order_by('-created_at')
 
         if filename:
@@ -105,6 +120,7 @@ class FindFileByUserView(APIView):
         serializer = FileResponeSerializer(result_page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
+
 
 class DownloadFileAPIview(APIView):
     permission_classes = [permissions.AllowAny]
@@ -119,6 +135,7 @@ class DownloadFileAPIview(APIView):
 
         return Response({"message": "file not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class FileDetailsViews(APIView):
     pagination_class = Pagination
     permission_classes = [permissions.AllowAny]
@@ -131,7 +148,7 @@ class FileDetailsViews(APIView):
 
         # Prepare data response
         data.update({
-            "id": file.id,
+            "id": str(file._id),  # Ensure ObjectId is a string
             "created_at": file.created_at,
             "filename": file.filename,
             "size": file.size,
@@ -139,13 +156,13 @@ class FileDetailsViews(APIView):
             "type": file.type,
         })
 
-        records = data.get("data", [])  # Extract the list of records
+        records = data.get("data", [])
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(records, request)
 
         paginated_response = paginator.get_paginated_response(result_page).data
         paginated_response.update({
-            "id": file.id,
+            "id": str(file._id),
             "headers": list(data.get("header", [])),
             "file": data.get("file", ""),
             "filename": filename,
@@ -153,6 +170,7 @@ class FileDetailsViews(APIView):
         })
 
         return Response(paginated_response)
+
 
 class FileDetailsActionView(APIView):
     def put(self, request, *args, **kwargs):
@@ -166,6 +184,7 @@ class FileDetailsActionView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class DeleteFileView(APIView):
     def delete(self, request, *args, **kwargs):
         uuid = kwargs.get('uuid')
@@ -177,6 +196,7 @@ class DeleteFileView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class GetAllImagesView(APIView):
     permission_classes = [permissions.AllowAny]
