@@ -56,12 +56,26 @@ jobs:
             tar -xzf app.tar.gz -C app  # Extract files into app directory
             cd app
 
-            # Check if Docker Compose is installed, install if missing
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null
+            then
+              echo "Docker not found, installing..."
+              sudo apt update
+              sudo apt install -y docker.io
+              sudo usermod -aG docker $USER
+              newgrp docker
+            fi
+
+            # Install Docker Compose if not installed
             if ! command -v docker-compose &> /dev/null
             then
               echo "Docker Compose not found, installing..."
               sudo apt update && sudo apt install -y docker-compose
             fi
+
+            # Ensure required directories and permissions
+            mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
+            chmod -R 755 /home/${{ secrets.AWS_EC2_USER }}/app/server/files
 
             # Deploy with Docker Compose
             docker-compose down  # Stop existing containers
