@@ -6,7 +6,7 @@ from rest_framework.parsers import FileUploadParser
 from django.http import FileResponse
 from django.shortcuts import render
 
-from file.api.serializers import FileResponeSerializer, CreateUserSerializer, UpdateFileSerializer, FileQuerySerializer
+from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, FileQuerySerializer
 
 import os
 from utils import file_util

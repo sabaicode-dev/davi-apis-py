@@ -26,15 +26,6 @@ class FileResponeSerializer(serializers.ModelSerializer):
             representation["id"] = str(representation["id"])
         return representation
 
-
-class CreateUserSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source="_id", read_only=True)
-
-    class Meta:
-        model = File
-        fields = '__all__'
-
-
 class UpdateFileSerializer(serializers.ModelSerializer):  # Ensure this exists
     file = serializers.CharField(max_length=100, required=True)
 
