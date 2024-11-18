@@ -2,7 +2,7 @@
 from django.urls import path, include
 from django.contrib import admin
 from django.urls import path,include
-from file.api.view import FileUploadView,FindFileByUserView,FileDetailsViews,FileDetailsActionView,DeleteFileView,DownloadFileAPIview,ViewHeaderView,FileViewAllApiView
+from file.api.view import FileUploadView,FileDetailsViews,FileDetailsActionView,DeleteFileView,DownloadFileAPIview,ViewHeaderView,FileViewAllApiView
 
 urlpatterns =   [
 
