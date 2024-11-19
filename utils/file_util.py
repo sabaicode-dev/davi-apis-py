@@ -11,13 +11,10 @@ from nbconvert import HTMLExporter
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
-file_server_path_image = os.getenv("FILE_SERVER_PATH_IMAGE")
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
 
 file_base_url = os.getenv("BASE_URL_FILE")
 FILE_TEMPLATE_PATH = os.getenv("FILE_TEMPLATE_PATH")
-ALLOWED_EXTENSIONS_IMAGE = ['.jpg', '.png', '.gif',
-                            '.bmp', '.tiff', '.tif', '.webp', '.ico', '.svg', '.jpeg',".JPG"]
 
 ALLOWED_EXTENSIONS_FILE = ['.csv', '.json', '.txt', '.xlsx']
 
