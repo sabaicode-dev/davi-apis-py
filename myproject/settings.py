@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'scrape',
     'file',
     'pagination',
-    'cleansing'
+    'cleansing',
+    'metafile'
 ]
 
 MIDDLEWARE = [

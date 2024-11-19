@@ -24,4 +24,6 @@ urlpatterns = [
     path('api/v1/', include('cleansing.api.urls')),
     # get files updated
     path('api/v1/', include('file.api.urls')),
+
+    path('metafile/', include('metafile.api.urls')),
 ]
