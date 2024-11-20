@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'file',
     'pagination',
     'cleansing',
-    'metafile'
+    'metafile',
+    'project',
 ]
 
 MIDDLEWARE = [
