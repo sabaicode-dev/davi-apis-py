@@ -1,187 +1,123 @@
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
-from rest_framework.parsers import FileUploadParser
-
-
-from django.shortcuts import render
-
-import pandas as pd
-from django.forms.models import model_to_dict
-
-from cleansing.api import service
-from cleansing.api.serializers import MyDataframeSerializer, CreateFileCleansingSerializer, ProcessFileCleansingSerializer
-import pandas as pd
-from django.http import JsonResponse
-import json
-import utils.file_util as file_util
-from file.models import File
 from django.shortcuts import get_object_or_404
-
-
-def find_file_by_fileUUID(filename):
-
-    file = File.objects.filter(file=filename)
-
-    if file:
-        return file
-    return None
-
-
-class FileUploadView(APIView):
-
-    parser_class = (FileUploadParser,)
-
-    def post(self, request, *args, **kwargs):
-
-        result = service.handle_uploaded_file_cleansing(
-            request.data['file'], kwargs['pk'])
-        serilizer = CreateFileCleansingSerializer(data=result)
-
-        if serilizer.is_valid():
-            serilizer.save()
-
-            if 'error' in result:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-            return JsonResponse(data=result, safe=False)
-        return Response(serilizer.errors, status=status.HTTP_400_BAD_REQUEST)
+import pandas as pd
+from bson import ObjectId
+from cleansing.api import service
+from file.models import File
+from cleansing.api.serializers import ProcessFileCleansingSerializer, CreateFileCleansingSerializer
+from cleansing.api.service import process_cleansing, data_cleansing
 
 
 class FileUploadFindInncurateDataView(APIView):
-
-    parser_class = (FileUploadParser,)
+    """
+    View for uploading a file and analyzing its inaccurate data (missing rows, duplicates, outliers).
+    """
 
     def post(self, request, *args, **kwargs):
+        project_id = kwargs.get("project_id")
+        file_id = kwargs.get("file_id")
 
-        if 'file' in request.FILES:
+        # Validate project and file existence
+        if not ObjectId.is_valid(project_id) or not ObjectId.is_valid(file_id):
+            return Response({"error": "Invalid project or file ID format."}, status=status.HTTP_400_BAD_REQUEST)
 
-            file = request.FILES['file']
-            if file.size == 0:
-                return Response({"error": "The uploaded file is empty."}, status=400)
+        file = get_object_or_404(File, _id=ObjectId(file_id), project_id=ObjectId(project_id), is_deleted=False)
 
-            try:
-                data = pd.read_csv(file, encoding='utf-8')
-            except UnicodeDecodeError:
-                file.seek(0)  # Move to the start of the file
-                data = pd.read_csv(
-                    file, encoding='ISO-8859-1', on_bad_lines='skip')
-            except pd.errors.EmptyDataError:
-                return Response({"error": "No columns to parse from file."}, status=400)
+        # Perform cleansing analysis
+        result = data_cleansing(file.filename)
 
-            data_json = data.to_dict(orient='records')
-            return Response(data_json)
-        else:
-            return Response({"error": "No file provided."}, status=400)
+        if "error" in result:
+            return Response({"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class ProcessCleaningFile(APIView):
+    """
+    View for processing file cleansing based on user-selected operations.
+    """
 
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-
+    def post(self, request, *args, **kwargs):
         serializer = ProcessFileCleansingSerializer(data=request.data)
 
-        data = None
-        create_file_serializer = None
         if serializer.is_valid():
+            filename = serializer.validated_data.get("filename")
+            process_list = serializer.validated_data.get("process")
 
-            filename = serializer.validated_data.get('filename')
-            file = File.objects.filter(filename=filename).first()
-            process = serializer.validated_data.get('process')
+            # Verify the file exists
+            file = File.objects.filter(filename=filename, is_deleted=False).first()
+            if not file:
+                return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            if file_util.find_file_by_filename(filename):
+            # Process the file with the selected cleansing operations
+            result = process_cleansing(filename, process_list)
 
-                result = service.process_data_cleansing(filename, process)
+            if not result:
+                return Response({"error": "Cleansing process failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                if result == None:
-                    return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                if result != None:
+            # Save the cleansed file data as a new entry in the database
+            cleansed_file_data = {
+                "project": file.project_id,
+                "filename": result["filename"],
+                "file": result["filename"],
+                "size": result["size"],
+                "type": "csv",
+                "is_original": False,
+                "is_deleted": False,
+            }
 
-                    data = {
-                        "created_by": serializer.data["created_by"],
-                        "is_original": False,
-                        "file": file.file,
-                        "filename": result["filename"],
-                        "size": result["size"],
-                        "type": str(file_util.get_file_extension(result["filename"])).replace(".", ""),
-                    }
+            create_file_serializer = CreateFileCleansingSerializer(data=cleansed_file_data)
+            if create_file_serializer.is_valid():
+                create_file_serializer.save()
+                return Response(create_file_serializer.data, status=status.HTTP_200_OK)
+            return Response(create_file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-                    create_file_serializer = CreateFileCleansingSerializer(data=data)
-                    
-                    if create_file_serializer.is_valid():
-                        create_file_serializer.save()
-                        return Response(create_file_serializer.data, status=status.HTTP_200_OK)
-                    return Response(create_file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                if "error" in result:
-                    return Response({"message": result,"status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                else:
-                    return Response({"message": result,"status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                return Response({"message": "filename  is not found.","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        response_data = {
-            "errors": serializer.errors,
-            "status": 500  # Replace with your additional object
-        }
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CleansingWithShellScript(APIView):
-
-    parser_class = (FileUploadParser,)
+    """
+    Cleansing file with shell script implementation.
+    """
 
     def get(self, request, *args, **kwargs):
-
         created_by = kwargs.get("created_by")
         uuid = kwargs.get("uuid")
-        file_data = get_object_or_404(
-            File, uuid=uuid, created_by=created_by, is_deleted=False)
-        filename = file_data.filename
-        file = file_util.find_file_by_name_sourse(filename=filename)
-        file_extension = file_util.get_file_extension(filename)
 
-        if file == None:
-            return Response({
-                "message": "Oops! The file you are looking for could not be found.",
-                "advice": "Please check the file path or contact support for assistance."
-            }, status=status.HTTP_404_NOT_FOUND)
+        # Validate the file exists
+        file = get_object_or_404(File, uuid=uuid, created_by=created_by, is_deleted=False)
 
-        file_db = File.objects.filter(filename=filename).first()
+        # Run shell script cleansing
+        result = service.cal_shellscript(file.filename)
 
-        data = {
-            "filename": filename,
-            "file": file_db.file,
-            "type": str(file_extension).replace(".", ""),
-            "size": file.st_size,
-            "created_by": created_by
-        }
+        if "error" in result:
+            return Response({"error": result["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        serilizer = CreateFileCleansingSerializer(data=data)
-
-        if serilizer.is_valid():
-
-            result = service.cal_shellscript(filename)
-            result["filename"] = filename
-            result["file"] = file_db.file
-
-            return JsonResponse(result, safe=False)
-
-        return Response(serilizer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class CleansingTest(APIView):
+    """
+    Testing cleansing by processing an already uploaded file.
+    """
 
-    parser_class = (FileUploadParser,)
+    def post(self, request, *args, **kwargs):
+        filename = request.data.get("filename")
 
-    def get(self, request):
+        # Check if the file exists in the database
+        file = File.objects.filter(filename=filename, is_deleted=False).first()
+        if not file:
+            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        file = request.FILES['file']
+        # Perform data cleansing
+        result = data_cleansing(filename)
 
-        files = file_util.handle_uploaded_file(file)
+        if "error" in result:
+            return Response({"error": result["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        filename = files["filename"]
+        return Response(result, status=status.HTTP_200_OK)
 
-        result = service.data_cleansing(filename)
-
-        return JsonResponse(result, safe=False)

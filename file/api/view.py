@@ -15,6 +15,7 @@ from pagination.pagination import Pagination
 
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from bson import ObjectId
 
 
 # View files by project ID
@@ -147,24 +148,35 @@ class FileDetailsViews(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, *args, **kwargs):
-        uuid = kwargs.get("uuid")
-        file = get_object_or_404(File, uuid=uuid)
+        file_id = kwargs.get("file_id")  # Use file_id instead of uuid
+
+        # Validate the file_id format (must be a valid ObjectId)
+        if not ObjectId.is_valid(file_id):
+            return Response({"error": "Invalid file ID format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch the file by _id
+        file = get_object_or_404(File, _id=ObjectId(file_id))
+
+        # Process the file data
         filename = file.filename
         data = service.load_dataset(filename, file=file.file)
 
+        # Update response data with file details
         data.update({
             "_id": str(file._id),
             "created_at": file.created_at,
             "filename": file.filename,
             "size": file.size,
-            "uuid": file.uuid,
+            "uuid": file.uuid,  # Include uuid for backward compatibility
             "type": file.type,
         })
 
+        # Paginate the records
         records = data.get("data", [])
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(records, request)
 
+        # Construct paginated response
         paginated_response = paginator.get_paginated_response(result_page).data
         paginated_response.update({
             "_id": str(file._id),

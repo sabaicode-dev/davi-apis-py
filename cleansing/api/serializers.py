@@ -14,7 +14,7 @@ class CreateFileCleansingSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         exclude = [
-            'id',
+            '_id',
         ]
 
 
@@ -35,4 +35,4 @@ class ProcessFileCleansingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        fields = ("process", "created_by", "filename")
+        fields = ("process", "filename")

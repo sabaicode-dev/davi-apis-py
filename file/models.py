@@ -6,7 +6,7 @@ import uuid
 
 
 class File(models.Model):
-    _id = djongo_models.ObjectIdField(primary_key=True, default=ObjectId, db_column="id")
+    _id = djongo_models.ObjectIdField(primary_key=True, default=ObjectId)  # Keep this as default MongoDB _id
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='files')
     filename = models.CharField(max_length=100, null=False)
     file = models.CharField(max_length=200, null=True)
