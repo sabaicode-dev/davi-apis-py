@@ -192,15 +192,33 @@ class FileDetailsActionView(APIView):
 
 
 # Delete a file
+@method_decorator(csrf_exempt, name='dispatch')
 class DeleteFileView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.AllowAny]  # Ensure the endpoint is accessible
+    
     def delete(self, request, *args, **kwargs):
-        uuid = kwargs.get('uuid')
-        file = get_object_or_404(File, uuid=uuid, is_deleted=False, is_sample=False)
+        try:
+            # Extract the UUID of the file from the URL
+            uuid = kwargs.get('uuid')
+            
+            # Ensure the file exists and is not marked as deleted
+            file = get_object_or_404(File, uuid=uuid, is_deleted=False, is_sample=False)
+            
+            # Use the service to remove the file from storage
+            file_removed = service.remove_file(file.filename)
+            
+            if file_removed:
+                # Mark the file as deleted in the database
+                file.is_deleted = True
+                file.save()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({"error": "Failed to delete the file."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except File.DoesNotExist:
+            # Handle the case where the file does not exist
+            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if service.remove_file(file.filename):
-            file.is_deleted = True
-            file.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            # Catch any other unexpected errors
+            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

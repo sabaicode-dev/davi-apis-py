@@ -6,7 +6,6 @@ from project.api.view import CreateProject, DeleteProject, ListProject, ProjectD
 
 
 urlpatterns = [
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger'),  # Swagger UI for API docs
     # create project endpoint
     path('project/', CreateProject.as_view(), name="create_project"),
     # get all projects
