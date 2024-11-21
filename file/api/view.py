@@ -13,6 +13,9 @@ from project.models import Project
 import file.api.service as service
 from pagination.pagination import Pagination
 
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -190,6 +193,7 @@ class FileDetailsActionView(APIView):
 
 # Delete a file
 class DeleteFileView(APIView):
+    permission_classes = [permissions.AllowAny]
     def delete(self, request, *args, **kwargs):
         uuid = kwargs.get('uuid')
         file = get_object_or_404(File, uuid=uuid, is_deleted=False, is_sample=False)

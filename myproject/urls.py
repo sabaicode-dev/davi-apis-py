@@ -26,5 +26,6 @@ urlpatterns = [
     path('api/v1/', include('file.api.urls')),
 
     path('metafile/', include('metafile.api.urls')),
+    # create new project
     path('api/v1/', include('project.api.urls')),
 ]

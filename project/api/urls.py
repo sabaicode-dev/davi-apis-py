@@ -19,7 +19,9 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger'),  # Swagger UI for API docs
+    # create project endpoint
     path('project/', CreateProject.as_view(), name="create_project"),
+    # get all projects
     path('projects/', ListProject.as_view(), name="list_projects"),
     path('project/<str:project_id>/', ProjectDetailView.as_view(), name="project_detail"),
     path('project/<str:project_id>/update/', UpdateProject.as_view(), name="update_project"),
