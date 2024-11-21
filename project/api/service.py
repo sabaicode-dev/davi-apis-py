@@ -46,11 +46,10 @@ class ProjectService:
             logger.exception("Error creating project")
             raise Exception(f"Error creating project: {str(e)}")
 
-
     @staticmethod
     def get_project_by_id(project_id):
         """
-        Retrieve a project instance by ID
+        Retrieve a project instance by ID, excluding soft-deleted projects.
         """
         try:
             if not ObjectId.is_valid(project_id):
@@ -60,8 +59,10 @@ class ProjectService:
             # Convert project_id to ObjectId
             object_id = ObjectId(project_id)
             logger.debug("Searching for project with _id: %s", object_id)
-            project = Project.objects.filter(_id=object_id).first()
-            print("ObjectId: ",project)
+
+            # Exclude projects with a non-null deleted_at field
+            project = Project.objects.filter(_id=object_id, deleted_at__isnull=True).first()
+
             if project:
                 logger.debug("Project found: %s", project)
             else:
@@ -70,24 +71,27 @@ class ProjectService:
         except Exception as e:
             logger.exception("Error retrieving project by ID")
             return None
+
     
     @staticmethod
-    def update_project(project_id,data):
+    def update_project(project_id, data):
         """
-        Update an existing project
+        Update an existing project, ensuring it's not soft-deleted.
         """
         try:
             project = ProjectService.get_project_by_id(project_id)
             if not project:
-                return None
-            
-            project.project_name = data.get("project_name",project.project_name)
-            project.project_description = data.get("project_description",project.project_description)
+                return None  # Project not found or soft-deleted
+
+            # Update fields
+            project.project_name = data.get("project_name", project.project_name)
+            project.project_description = data.get("project_description", project.project_description)
             project.save()
             return project
         except Exception as e:
-            logger.exception("Error update project")
+            logger.exception("Error updating project")
             return None
+
         
 
     def delete_project(project_id):
@@ -112,36 +116,35 @@ class ProjectService:
     @staticmethod
     def get_all_project(filters=None, sort_by=None, page=1, page_size=10):
         """
-        Retrieve all projects with filters, sorting, and pagination.
+        Retrieve all projects with filters, sorting, and pagination, excluding soft-deleted projects.
         """
         try:
-            queryset = Project.objects.all()
-            
+            queryset = Project.objects.filter(deleted_at__isnull=True)  # Exclude soft-deleted projects
+
             # Apply filters if provided
             if filters:
                 queryset = queryset.filter(**filters)
-            
+
             # Apply sorting if provided
             if sort_by:
-                # Determine ascending or descending order
                 if sort_by.startswith('-'):
                     queryset = queryset.order_by(F(sort_by[1:]).desc())  # descending order
                 else:
                     queryset = queryset.order_by(F(sort_by).asc())  # ascending order
-            
+
             # Get total count for pagination
             total_count = queryset.count()
-            
+
             # Calculate pagination
             start = (page - 1) * page_size
             end = start + page_size
-            
+
             # Get paginated results
             projects = list(queryset[start:end])
-            
+
             # Calculate total pages
             total_pages = (total_count + page_size - 1) // page_size
-            
+
             return projects, total_count, total_pages
         except Exception as e:
             logger.exception("Error retrieving projects")

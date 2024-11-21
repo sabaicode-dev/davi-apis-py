@@ -57,7 +57,7 @@ class ProjectDetailView(APIView):
             serializer = ProjectSerializer(project)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response({"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Project not found or deleted"}, status=status.HTTP_404_NOT_FOUND)
 
 class UpdateProject(APIView):
     def put(self, request, project_id):
@@ -72,7 +72,7 @@ class UpdateProject(APIView):
             serializer = ProjectSerializer(project)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response({"error": "Project not found or failed to update"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Project not found or deleted"}, status=status.HTTP_404_NOT_FOUND)
 
 class DeleteProject(APIView):
     def delete(self, request, project_id):
@@ -96,12 +96,8 @@ class ListProject(APIView):
             page_size = int(request.query_params.get('page_size', 10))
             sort_by = request.query_params.get('sort_by')
             
-            # Validate pagination parameters
             if page < 1 or page_size < 1:
-                return Response(
-                    {"error": "Invalid pagination parameters"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"error": "Invalid pagination parameters"}, status=status.HTTP_400_BAD_REQUEST)
             
             # Get projects with pagination
             projects, total_count, total_pages = ProjectService.get_all_project(
@@ -110,7 +106,6 @@ class ListProject(APIView):
                 page_size=page_size
             )
             
-            # Serialize the results
             serializer = ProjectSerializer(projects, many=True)
             
             response_data = {
@@ -121,15 +116,8 @@ class ListProject(APIView):
             }
             
             return Response(response_data, status=status.HTTP_200_OK)
-            
         except ValueError as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Error listing projects")
-            return Response(
-                {"error": "Failed to retrieve projects"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": "Failed to retrieve projects"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
