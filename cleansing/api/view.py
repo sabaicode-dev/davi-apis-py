@@ -1,44 +1,92 @@
+from pymongo import MongoClient
+from bson import ObjectId
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-import pandas as pd
-from bson import ObjectId
-from cleansing.api import service
+from cleansing.api.serializers import CreateFileCleansingSerializer, ProcessFileCleansingSerializer
+from cleansing.api.service import data_cleansing, process_cleansing
+import logging
+
 from file.models import File
-from cleansing.api.serializers import ProcessFileCleansingSerializer, CreateFileCleansingSerializer
-from cleansing.api.service import process_cleansing, data_cleansing
+
+logger = logging.getLogger(__name__)
 
 
-class FileUploadFindInncurateDataView(APIView):
+class FileUploadFindInaccurateDataView(APIView):
     """
-    View for uploading a file and analyzing its inaccurate data (missing rows, duplicates, outliers).
+    Simplified approach to analyze the file for missing rows, duplicates, and outliers.
     """
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
         project_id = kwargs.get("project_id")
         file_id = kwargs.get("file_id")
 
-        # Validate project and file existence
-        if not ObjectId.is_valid(project_id) or not ObjectId.is_valid(file_id):
-            return Response({"error": "Invalid project or file ID format."}, status=status.HTTP_400_BAD_REQUEST)
+        # MongoDB connection
+        client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
+        db = client[settings.DATABASES['default']['NAME']]
 
-        file = get_object_or_404(File, _id=ObjectId(file_id), project_id=ObjectId(project_id), is_deleted=False)
+        try:
+            # Simplified query: Try to find by `_id`, fallback to filename if needed
+            file = None
+            if file_id:
+                try:
+                    file = db.files.find_one({"_id": ObjectId(file_id), "is_deleted": False})
+                except Exception as e:
+                    logger.warning(f"Invalid ObjectId for file_id: {file_id}. Error: {str(e)}")
 
-        # Perform cleansing analysis
-        result = data_cleansing(file.filename)
+            if not file:  # Fallback to find the latest file by project_id
+                file = db.files.find_one(
+                    {"project_id": project_id, "is_deleted": False},
+                    sort=[("created_at", -1)],  # Pick the most recent file
+                )
 
-        if "error" in result:
-            return Response({"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
+            if not file:
+                return Response({"error": "File not found in database."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(result, status=status.HTTP_200_OK)
+            # File found, proceed with cleansing
+            result = data_cleansing(file["filename"])
+
+            if "error" in result:
+                return Response(
+                    {
+                        "error": result["error"],
+                        "suggestion": "Ensure the file exists and has a valid structure.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            return Response(
+                {"error": "An unexpected error occurred. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        finally:
+            client.close()
+
+
+
+def convert_object_ids(data):
+    """
+    Recursively convert ObjectId fields in a dictionary or list to strings.
+    """
+    if isinstance(data, dict):
+        return {k: convert_object_ids(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_object_ids(item) for item in data]
+    elif isinstance(data, ObjectId):
+        return str(data)
+    else:
+        return data
 
 
 class ProcessCleaningFile(APIView):
     """
     View for processing file cleansing based on user-selected operations.
     """
-
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -48,76 +96,43 @@ class ProcessCleaningFile(APIView):
             filename = serializer.validated_data.get("filename")
             process_list = serializer.validated_data.get("process")
 
-            # Verify the file exists
-            file = File.objects.filter(filename=filename, is_deleted=False).first()
+            # Use PyMongo to find the file
+            client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
+            db = client[settings.DATABASES['default']['NAME']]
+            file = db.files.find_one({"filename": filename})
+
             if not file:
                 return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Process the file with the selected cleansing operations
+            # Convert ObjectId to string for logging
+            logger.info(f"Processing file: {convert_object_ids(file)}")
+
+            # Process cleansing operations
             result = process_cleansing(filename, process_list)
 
-            if not result:
-                return Response({"error": "Cleansing process failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if "error" in result:
+                return Response({"error": result["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # Save the cleansed file data as a new entry in the database
+            # Save cleansed data back to the database
             cleansed_file_data = {
-                "project": file.project_id,
+                "project": file.get("project_id"),
                 "filename": result["filename"],
                 "file": result["filename"],
                 "size": result["size"],
                 "type": "csv",
                 "is_original": False,
-                "is_deleted": False,
+                "original_file": str(file.get("_id")),  # Convert ObjectId to string
             }
 
-            create_file_serializer = CreateFileCleansingSerializer(data=cleansed_file_data)
-            if create_file_serializer.is_valid():
-                create_file_serializer.save()
-                return Response(create_file_serializer.data, status=status.HTTP_200_OK)
-            return Response(create_file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Insert cleansed file into MongoDB
+            inserted_id = db.files.insert_one(cleansed_file_data).inserted_id
+            cleansed_file_data["_id"] = str(inserted_id)
+
+            client.close()
+
+            # Convert all ObjectId fields to strings before returning
+            cleansed_file_data = convert_object_ids(cleansed_file_data)
+
+            return Response(cleansed_file_data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class CleansingWithShellScript(APIView):
-    """
-    Cleansing file with shell script implementation.
-    """
-
-    def get(self, request, *args, **kwargs):
-        created_by = kwargs.get("created_by")
-        uuid = kwargs.get("uuid")
-
-        # Validate the file exists
-        file = get_object_or_404(File, uuid=uuid, created_by=created_by, is_deleted=False)
-
-        # Run shell script cleansing
-        result = service.cal_shellscript(file.filename)
-
-        if "error" in result:
-            return Response({"error": result["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response(result, status=status.HTTP_200_OK)
-
-
-class CleansingTest(APIView):
-    """
-    Testing cleansing by processing an already uploaded file.
-    """
-
-    def post(self, request, *args, **kwargs):
-        filename = request.data.get("filename")
-
-        # Check if the file exists in the database
-        file = File.objects.filter(filename=filename, is_deleted=False).first()
-        if not file:
-            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        # Perform data cleansing
-        result = data_cleansing(filename)
-
-        if "error" in result:
-            return Response({"error": result["error"]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response(result, status=status.HTTP_200_OK)
-

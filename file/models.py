@@ -4,10 +4,9 @@ from django.db import models
 from bson import ObjectId
 import uuid
 
-
 class File(models.Model):
-    _id = djongo_models.ObjectIdField(primary_key=True, default=ObjectId)  # Keep this as default MongoDB _id
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='files')
+    _id = djongo_models.ObjectIdField(primary_key=True, default=ObjectId)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="files")
     filename = models.CharField(max_length=100, null=False)
     file = models.CharField(max_length=200, null=True)
     size = models.IntegerField(null=True, blank=True)
@@ -18,7 +17,15 @@ class File(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_sample = models.BooleanField(default=False)
 
+    original_file = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="cleansed_files",
+    )
+
     class Meta:
-        verbose_name = 'file'
-        verbose_name_plural = 'files'
+        verbose_name = "file"
+        verbose_name_plural = "files"
         db_table = "files"
