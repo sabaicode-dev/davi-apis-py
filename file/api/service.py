@@ -154,68 +154,6 @@ def view_type_dataset(filename):
     
     return None
 
-# def load_datasetHeader(filename, size=0):
-
-
-#     data = load_dataset(filename)
-#     if data is not None:
-#         numeric_columns = []
-#         object_columns = []
-
-#         for column in data.columns:
-#             original_type = str(data[column].dtype)
-
-#             if original_type == 'object':
-
-#                 numeric_values = data[column].astype(str).str.extract(r'(\d+)', expand=False)
-#                 if not numeric_values.dropna().empty:
-
-#                     if find_character(str(data[column].head(1).iloc[0])):
-#                         object_columns.append(column)
-#                     else:    
-#                         numeric_columns.append(column)
-#                 else:
-#                     object_columns.append(column)
-#             else:
-#                 numeric_columns.append(column)
-
-
-#     date_columns = []
-#     for col in data.columns:
-#         # Check if the column contains string-like data
-#         if data[col].dtype == 'object' or any(isinstance(x, str) for x in data[col]):
-#             try:
-#                 # Attempt to convert the column to datetime
-#                 pd.to_datetime(data[col])
-#                 # If successful, add to the list
-#                 date_columns.append(col)
-#                 print(col)
-#             except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
-#                 # If conversion fails, it's not a date column
-#                 continue
-
-
-#     numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-#     group_numeric = data.select_dtypes(include=numerics)
-#     msg = []
-#     for col in group_numeric.columns.to_list():
-#         respone ={
-#             "value":col,
-#             "label":col
-#         }
-#         msg.append(respone)
-#     if data is not None and not data.empty:
-
-        
-#         return {
-#             "header": data.columns.to_list(),
-#             "header_label":msg,
-#             "header_numeric":group_numeric.columns.to_list(),
-#             "header_date": date_columns,  # Add this line to include date columns
-#         }
-#     return None
-
-
 def load_dataset_file(filename):
 
     file_path = file_server_path_file+filename
