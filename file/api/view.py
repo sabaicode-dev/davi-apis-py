@@ -1,4 +1,4 @@
-import mimetypes
+import re
 import os
 from rest_framework.response import Response
 from rest_framework import status, permissions
@@ -16,7 +16,6 @@ from pagination.pagination import Pagination
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from bson import ObjectId
-
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -150,18 +149,85 @@ class DownloadFileAPIview(APIView):
 
         return Response({"message": "file not found"}, status=status.HTTP_404_NOT_FOUND)
 
-
-# View file details
 class FileDetailsViews(APIView):
     pagination_class = Pagination
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request, *args, **kwargs):
-        file_id = kwargs.get("file_id")  # Use file_id instead of uuid
+    def analyze_columns(self, data):
+        """
+        Perform comprehensive column analysis
+        """
+        headers = data.get("header", [])
+        records = data.get("data", [])
+        
+        column_analysis = {}
+        for header in headers:
+            column_data = [str(row.get(header, '')) for row in records if header in row]
+            
+            column_analysis[header] = {
+                "name": header,
+                "total_values": len(column_data),
+                "unique_values": len(set(column_data)),
+                "unique_percentage": round(len(set(column_data)) / len(column_data) * 100, 2) if column_data else 0,
+                "data_types": self.detect_column_types(column_data),
+                "sample_values": column_data[:5],  # First 5 sample values
+                "is_nullable": any(not value for value in column_data)
+            }
+        
+        return column_analysis
 
-        # Validate the file_id format (must be a valid ObjectId)
+    def detect_column_types(self, column_data):
+        """
+        Detect potential data types for a column
+        """
+        data_types = {
+            "numeric": 0,
+            "string": 0,
+            "boolean": 0,
+            "date": 0
+        }
+        
+        for value in column_data:
+            try:
+                # Numeric check
+                float(value)
+                data_types["numeric"] += 1
+            except ValueError:
+                # Boolean check
+                if value.lower() in ['true', 'false', '0', '1']:
+                    data_types["boolean"] += 1
+                # Date check (basic)
+                elif self.is_date(value):
+                    data_types["date"] += 1
+                # String (default)
+                else:
+                    data_types["string"] += 1
+        
+        # Convert to percentages
+        total = len(column_data)
+        return {k: round(v/total * 100, 2) for k, v in data_types.items()}
+
+    def is_date(self, value):
+        """
+        Basic date detection
+        """
+        date_formats = [
+            r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
+            r'^\d{2}/\d{2}/\d{4}$',   # MM/DD/YYYY
+            r'^\d{2}-\d{2}-\d{4}$'    # DD-MM-YYYY
+        ]
+        
+        return any(re.match(pattern, str(value)) for pattern in date_formats)
+
+    def get(self, request, *args, **kwargs):
+        file_id = kwargs.get("file_id")
+
+        # Validate the file_id format
         if not ObjectId.is_valid(file_id):
-            return Response({"error": "Invalid file ID format."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Invalid file ID format."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Fetch the file by _id
         file = get_object_or_404(File, _id=ObjectId(file_id))
@@ -170,13 +236,16 @@ class FileDetailsViews(APIView):
         filename = file.filename
         data = service.load_dataset(filename, file=file.file)
 
+        # Analyze columns
+        column_analysis = self.analyze_columns(data)
+
         # Update response data with file details
         data.update({
             "_id": str(file._id),
             "created_at": file.created_at,
             "filename": file.filename,
             "size": file.size,
-            "uuid": file.uuid,  # Include uuid for backward compatibility
+            "uuid": file.uuid,
             "type": file.type,
         })
 
@@ -192,7 +261,14 @@ class FileDetailsViews(APIView):
             "headers": list(data.get("header", [])),
             "file": data.get("file", ""),
             "filename": filename,
-            "total": data.get("total", None),
+            "total_row": data.get("total", None),
+            "column_analysis": column_analysis,
+            "dataset_summary": {
+                "total_rows": len(records),
+                "total_columns": len(data.get("header", [])),
+                "file_type": file.type,
+                "file_size": file.size
+            }
         })
 
         return Response(paginated_response)
