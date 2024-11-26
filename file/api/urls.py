@@ -14,4 +14,3 @@ urlpatterns = [
     path('project/<str:project_id>/file/upload/download/<str:filename>/', DownloadFileAPIview.as_view(), name="download-file"),
     path('all/', FileViewAllApiView.as_view(), name='view-all-file'),
 ]
-
