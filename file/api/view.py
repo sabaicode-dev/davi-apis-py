@@ -23,13 +23,22 @@ class ProjectFilesView(APIView):
     def get(self, request, *args, **kwargs):
         project_id = kwargs.get('project_id')
         try:
+            # Retreve the object
             project = Project.objects.get(_id=ObjectId(project_id))
         except Project.DoesNotExist:
             return Response({"error": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
 
         files = project.files.all()
         serializer = FileResponeSerializer(files, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        print("Response data:",serializer.data)
+        return Response(
+            {
+                "success": True,
+                "message": "Files retrieved successfully.",
+                "data": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 # View all files with pagination
