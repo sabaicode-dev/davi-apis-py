@@ -1,5 +1,6 @@
 import re
 import os
+import logging
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
@@ -16,6 +17,9 @@ from pagination.pagination import Pagination
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from bson import ObjectId
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -288,34 +292,106 @@ class FileDetailsActionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Delete a file
+
+
+FILE_SERVER_PATH_FILE = os.getenv('FILE_SERVER_PATH_FILE')
+
+# Delete a file(New)
+logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')
 class DeleteFileView(APIView):
-    permission_classes = [permissions.AllowAny]  # Ensure the endpoint is accessible
-    
+    permission_classes = [permissions.AllowAny]
+
     def delete(self, request, *args, **kwargs):
         try:
-            # Extract the UUID of the file from the URL
-            uuid = kwargs.get('uuid')
-            
-            # Ensure the file exists and is not marked as deleted
-            file = get_object_or_404(File, uuid=uuid, is_deleted=False, is_sample=False)
-            
-            # Use the service to remove the file from storage
-            file_removed = service.remove_file(file.filename)
-            
-            if file_removed:
-                # Mark the file as deleted in the database
-                file.is_deleted = True
-                file.save()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                return Response({"error": "Failed to delete the file."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        except File.DoesNotExist:
-            # Handle the case where the file does not exist
-            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
+            # Extract parameters from URL
+            project_id = kwargs.get('project_id')
+            identifier = kwargs.get('identifier')  # Can be UUID or _id
 
-        except Exception as e:
-            # Catch any other unexpected errors
-            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Validate project_id
+            if not project_id or not ObjectId.is_valid(project_id):
+                logger.error(f"Invalid Project ID: {project_id}")
+                return Response({
+                    "error": "Invalid Project ID",
+                    "details": {"project_id": project_id}
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Find the project
+            try:
+                project = Project.objects.get(_id=ObjectId(project_id))
+            except Project.DoesNotExist:
+                logger.error(f"Project not found: {project_id}")
+                return Response({
+                    "error": "Project not found",
+                    "details": {"project_id": project_id}
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Determine query based on identifier type (UUID or ObjectId)
+            query = {}
+            if re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', identifier):
+                # UUID format
+                query['uuid'] = identifier
+            elif ObjectId.is_valid(identifier):
+                # ObjectId format
+                query['_id'] = ObjectId(identifier)
+            else:
+                logger.error(f"Invalid identifier format: {identifier}")
+                return Response({
+                    "error": "Invalid identifier format",
+                    "details": {"identifier": identifier}
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Add additional conditions to the query
+            query.update({
+                'project': project,
+                'is_deleted': False,  # File must not be deleted
+                'is_sample': False    # Ensure the file is not a sample (if necessary)
+            })
+
+            # Find the file
+            try:
+                file = File.objects.get(**query)
+            except File.DoesNotExist:
+                logger.error(f"File not found with query: {query}")
+                return Response({
+                    "error": "File not found",
+                    "details": {
+                        "identifier": identifier,
+                        "project_id": project_id
+                    }
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Construct the full file path using FILE_SERVER_PATH_FILE
+            file_path = os.path.join(FILE_SERVER_PATH_FILE, file.filename)
+            logger.info(f"Attempting to remove file at: {file_path}")
+
+            # Attempt to remove the physical file from storage
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"Successfully removed file: {file.filename}")
+            else:
+                logger.error(f"File not found at path: {file_path}")
+                return Response({
+                    "error": "File storage removal failed",
+                    "details": {"filename": file.filename, "path": file_path}
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Soft delete the file in the database
+            file.is_deleted = True
+            file.save(update_fields=['is_deleted'])
+
+            return Response({
+                "message": "File deleted successfully",
+                "details": {
+                    "identifier": str(identifier),
+                    "filename": file.filename
+                }
+            }, status=status.HTTP_200_OK)
+
+        except Exception as unexpected_error:
+            # Log unexpected errors for debugging
+            logger.critical(f"Unexpected error during file deletion: {unexpected_error}", exc_info=True)
+            return Response({
+                "error": "Deletion process failed",
+                "details": str(unexpected_error)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
