@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 /D:
+home/
 # Virtual environment folders
 venv/
 .venv/
