@@ -1,6 +1,3 @@
-# prepare put in shellscripts
-
-
 import os
 import uuid
 from dotenv import load_dotenv
@@ -10,12 +7,11 @@ import chardet
 import utils.file_util as util
 from rest_framework import status
 import csv
-import subprocess
-import json
 import os
 import utils.file_util as file_utile
 from django.http import HttpResponse
 import re
+
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
@@ -305,11 +301,15 @@ def load_datasetHeader(filename):
 
 
 def remove_file(filename):
-    path_file = file_server_path_file+filename
-    if file_utile.find_file_by_filename(filename):
-        os.remove(path_file)
-        return True
-    return False
+    path_file = file_server_path_file + filename
+    try:
+        if os.path.exists(path_file):
+            os.remove(path_file)
+            return True
+        return False
+    except Exception as e:
+        print(f"Error removing file {filename}: {e}")
+        return False
 
 def download_file(filename):
 
