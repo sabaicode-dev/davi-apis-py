@@ -28,4 +28,5 @@ urlpatterns = [
     path('metafile/', include('metafile.api.urls')),
     # create new project
     path('api/v1/', include('project.api.urls')),
+    path('api/v1/', include('aigeneratedes.api.urls')),
 ]
