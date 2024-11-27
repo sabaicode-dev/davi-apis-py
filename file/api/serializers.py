@@ -37,7 +37,7 @@ class FileResponeSerializer(serializers.ModelSerializer):
         if isinstance(representation.get("_id"), ObjectId):
             representation["_id"] = str(representation["_id"])
         return representation
-
+    
 
 class UpdateFileSerializer(serializers.ModelSerializer):
     class Meta:
