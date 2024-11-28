@@ -12,7 +12,7 @@ class File(models.Model):
     size = models.IntegerField(null=True, blank=True)
     type = models.CharField(max_length=20, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    uuid = models.CharField(max_length=36, unique=True, editable=False, default=uuid.uuid4)
     is_original = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
     is_sample = models.BooleanField(default=False)

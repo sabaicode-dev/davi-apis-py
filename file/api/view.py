@@ -12,11 +12,11 @@ from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, Fi
 from project.models import Project
 import file.api.service as service
 from pagination.pagination import Pagination
-
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from bson import ObjectId
-
+from django.db import transaction
+from django.http import JsonResponse
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -233,34 +233,38 @@ class FileDetailsActionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Delete a file
-@method_decorator(csrf_exempt, name='dispatch')
+# Delete a file by _id (MongoDB ObjectId)
 class DeleteFileView(APIView):
-    permission_classes = [permissions.AllowAny]  # Ensure the endpoint is accessible
-    
-    def delete(self, request, *args, **kwargs):
-        try:
-            # Extract the ObjectId of the file from the URL
-            file_id = kwargs.get('file_id')
-            
-            # Ensure the file exists and is not marked as deleted
-            file = get_object_or_404(File, _id=ObjectId(file_id), is_deleted=False, is_sample=False)
-            
-            # Use the service to remove the file from storage
-            file_removed = service.remove_file(file.filename)
-            
-            if file_removed:
-                # Mark the file as deleted in the database
-                file.is_deleted = True
-                file.save()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                return Response({"error": "Failed to delete the file."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        except File.DoesNotExist:
-            # Handle the case where the file does not exist
-            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
+    permission_classes = [permissions.AllowAny]
 
+    def delete(self, request, *args, **kwargs):
+        # Get the file's ObjectId from the URL parameters (file_id)
+        file_id = kwargs.get('file_id')
+
+        # Check if file_id is a valid 24-character ObjectId string
+        if len(file_id) != 24:
+            return JsonResponse({"error": "Invalid ObjectId format. It should be 24 characters long."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Query the file by its _id (MongoDB ObjectId) and other filters
+            print(f"Attempting to retrieve file with ID: {file_id}")
+            file = File.objects.get(_id=ObjectId(file_id), is_deleted=False, is_sample=False)
+            print(f"File retrieved: {file}")
+        except File.DoesNotExist:
+            print(f"File with ID {file_id} does not exist or has been deleted.")
+            return Response({"error": "File not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            # Catch any other unexpected errors
-            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Log the full exception message for debugging
+            print(f"Error retrieving file: {str(e)}")
+            return JsonResponse({"error": f"Error retrieving file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Proceed with file deletion if valid
+        print(f"Attempting to remove file: {file.filename}")
+        if service.remove_file(file.filename):
+            file.is_deleted = True
+            file.save()
+            print(f"File {file.filename} successfully deleted.")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            print(f"Failed to delete the file: {file.filename}")
+            return Response({"error": "File not found in storage or failed to delete from storage."}, status=status.HTTP_404_NOT_FOUND)
