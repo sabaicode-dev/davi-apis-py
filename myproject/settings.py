@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'cleansing',
     'metafile',
     'project',
+    'Visualize',
 ]
 
 MIDDLEWARE = [

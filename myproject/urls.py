@@ -28,4 +28,6 @@ urlpatterns = [
     path('metafile/', include('metafile.api.urls')),
     # create new project
     path('api/v1/', include('project.api.urls')),
+    # create new Visualize
+    path('api/v1/visualize/', include('Visualize.api.urls')),
 ]
