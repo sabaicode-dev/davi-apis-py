@@ -240,11 +240,11 @@ class DeleteFileView(APIView):
     
     def delete(self, request, *args, **kwargs):
         try:
-            # Extract the UUID of the file from the URL
-            uuid = kwargs.get('uuid')
+            # Extract the ObjectId of the file from the URL
+            file_id = kwargs.get('file_id')
             
             # Ensure the file exists and is not marked as deleted
-            file = get_object_or_404(File, uuid=uuid, is_deleted=False, is_sample=False)
+            file = get_object_or_404(File, _id=ObjectId(file_id), is_deleted=False, is_sample=False)
             
             # Use the service to remove the file from storage
             file_removed = service.remove_file(file.filename)
