@@ -26,6 +26,7 @@ class FileUploadFindInaccurateDataView(APIView):
         # MongoDB connection
         client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
         db = client[settings.DATABASES['default']['NAME']]
+        print("How are uuuuuuuuuuuuuuuuu \n",db)
 
         try:
             # Simplified query: Try to find by `_id`, fallback to filename if needed

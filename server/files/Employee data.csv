@@ -1,6 +1,5 @@
 id,gender,bdate,educ,jobcat,salary,salbegin,jobtime,prevexp,minority
 137,Male,7/12/1937,100,Manager,65000,37500,88,264,No
-137,Male,7/12/1937,100,Manager,65000,37500,88,264,No
 130,Male,9/6/1958,20,Manager,59375,30000,89,6,No
 173,Male,1/15/1950,1,Manager,69250,42480,85,134,No
 27,Male,3/19/1954,19,Manager,60375,27480,96,96,No

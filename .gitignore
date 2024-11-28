@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 /D:
+MongoConnection.py
 home/
 # Virtual environment folders
 venv/
