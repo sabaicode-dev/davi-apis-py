@@ -75,7 +75,9 @@ class FileUploadView(APIView):
             return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Save the file to the specified directory
-        base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
+        # base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
+        base_path = os.getenv("FILE_SERVER_PATH_FILE", default="/home/joker/Desktop/DRIVE/1-Bootcampt_program/SabaiCode_Program_Docs/3-Final_Project/davi-apis-py/server/files")
+
         if not os.path.exists(base_path):
             os.makedirs(base_path)  # Create the directory if it doesn't exist
 
@@ -340,10 +342,10 @@ class DeleteFileView(APIView):
                 file.save()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
-                logger.error(f"Invalid identifier format: {identifier}")
+                logger.error(f"Invalid identifier format: {file_id}")
                 return Response({
                     "error": "Invalid identifier format",
-                    "details": {"identifier": identifier}
+                    "details": {"identifier": file_id}
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Add additional conditions to the query
