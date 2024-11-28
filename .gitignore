@@ -1,7 +1,8 @@
 # Python cache files
 __pycache__/
 *.pyc
-
+D:/
+MongoConnection.py
 # Virtual environment folders
 venv/
 .venv/
