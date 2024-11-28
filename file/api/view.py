@@ -325,36 +325,20 @@ class DeleteFileView(APIView):
 
     def delete(self, request, *args, **kwargs):
         try:
-            # Extract parameters from URL
-            project_id = kwargs.get('project_id')
-            identifier = kwargs.get('identifier')  # Can be UUID or _id
-
-            # Validate project_id
-            if not project_id or not ObjectId.is_valid(project_id):
-                logger.error(f"Invalid Project ID: {project_id}")
-                return Response({
-                    "error": "Invalid Project ID",
-                    "details": {"project_id": project_id}
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Find the project
-            try:
-                project = Project.objects.get(_id=ObjectId(project_id))
-            except Project.DoesNotExist:
-                logger.error(f"Project not found: {project_id}")
-                return Response({
-                    "error": "Project not found",
-                    "details": {"project_id": project_id}
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            # Determine query based on identifier type (UUID or ObjectId)
-            query = {}
-            if re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', identifier):
-                # UUID format
-                query['uuid'] = identifier
-            elif ObjectId.is_valid(identifier):
-                # ObjectId format
-                query['_id'] = ObjectId(identifier)
+            # Extract the ObjectId of the file from the URL
+            file_id = kwargs.get('file_id')
+            
+            # Ensure the file exists and is not marked as deleted
+            file = get_object_or_404(File, _id=ObjectId(file_id), is_deleted=False, is_sample=False)
+            
+            # Use the service to remove the file from storage
+            file_removed = service.remove_file(file.filename)
+            
+            if file_removed:
+                # Mark the file as deleted in the database
+                file.is_deleted = True
+                file.save()
+                return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 logger.error(f"Invalid identifier format: {identifier}")
                 return Response({
