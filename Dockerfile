@@ -25,7 +25,7 @@ RUN pip install -r requirements.txt
 COPY . /app/
 
 # Set environment variables for the Django application
-COPY .env.stage /app/.env
+COPY .env.development /app/.env
 
 # Expose the port that the app runs on
 EXPOSE 8000
