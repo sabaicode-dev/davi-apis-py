@@ -1,34 +1,48 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.12.0
+# Use an official Python runtime as a parent image
+FROM python:3.12.0-slim-bullseye
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV PIP_NO_CACHE_DIR 1
 
-# Set the working directory in the container
+# Set work directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
-    && apt-get clean \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container
-COPY requirements.txt /app/
+# Upgrade pip
+RUN pip install --upgrade pip
 
-# Upgrade pip and install Python dependencies
+# Copy only requirements first to leverage docker cache
+COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install -r requirements.txt
 
-# Copy the entire project into the container
-COPY . /app/
+# Copy project files
+COPY . .
 
-# Set environment variables for the Django application
-COPY .env.stage /app/.env
+# Create necessary directories
+RUN mkdir -p /app/server/files
 
-# Expose the port that the app runs on
+# Expose the port the app runs on
 EXPOSE 8000
+
+# Use a non-root user
+RUN addgroup --system django && \
+    adduser --system --ingroup django django
+
+# Change ownership of the app directory
+RUN chown -R django:django /app
+
+# Switch to non-root user
+USER django
 
 # Command to run the application
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
