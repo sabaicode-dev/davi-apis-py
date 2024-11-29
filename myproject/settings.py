@@ -31,6 +31,7 @@ SECRET_KEY = 'django-insecure-r$5@fi1@*@0$jx(%iahz9_@ob@t#3oorkkpss=y3jq9m!m@zt^
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['54.151.219.161']  # Replace with your actual public IP
 
 
 # Application definition
