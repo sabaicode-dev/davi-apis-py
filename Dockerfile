@@ -1,5 +1,5 @@
 # Use the official Python image from the Docker Hub
-FROM python:3.12.0
+FROM python:3.10.6-slim-buster
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -31,4 +31,4 @@ COPY .env.development /app/.env
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000", "--noreload"]
