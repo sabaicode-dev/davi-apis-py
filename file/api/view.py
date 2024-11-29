@@ -13,13 +13,11 @@ from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, Fi
 from project.models import Project
 import file.api.service as service
 from pagination.pagination import Pagination
-
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from bson import ObjectId
-
-# Configure logging
-logger = logging.getLogger(__name__)
+from django.db import transaction
+from django.http import JsonResponse
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -315,90 +313,38 @@ class FileDetailsActionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
-FILE_SERVER_PATH_FILE = os.getenv('FILE_SERVER_PATH_FILE')
-
-# Delete a file(New)
-logger = logging.getLogger(__name__)
-@method_decorator(csrf_exempt, name='dispatch')
+# Delete a file by _id (MongoDB ObjectId)
 class DeleteFileView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def delete(self, request, *args, **kwargs):
+        # Get the file's ObjectId from the URL parameters (file_id)
+        file_id = kwargs.get('file_id')
+
+        # Check if file_id is a valid 24-character ObjectId string
+        if len(file_id) != 24:
+            return JsonResponse({"error": "Invalid ObjectId format. It should be 24 characters long."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            # Extract the ObjectId of the file from the URL
-            file_id = kwargs.get('file_id')
-            
-            # Ensure the file exists and is not marked as deleted
-            file = get_object_or_404(File, _id=ObjectId(file_id), is_deleted=False, is_sample=False)
-            
-            # Use the service to remove the file from storage
-            file_removed = service.remove_file(file.filename)
-            
-            if file_removed:
-                # Mark the file as deleted in the database
-                file.is_deleted = True
-                file.save()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                logger.error(f"Invalid identifier format: {file_id}")
-                return Response({
-                    "error": "Invalid identifier format",
-                    "details": {"identifier": file_id}
-                }, status=status.HTTP_400_BAD_REQUEST)
+            # Query the file by its _id (MongoDB ObjectId) and other filters
+            print(f"Attempting to retrieve file with ID: {file_id}")
+            file = File.objects.get(_id=ObjectId(file_id), is_deleted=False, is_sample=False)
+            print(f"File retrieved: {file}")
+        except File.DoesNotExist:
+            print(f"File with ID {file_id} does not exist or has been deleted.")
+            return Response({"error": "File not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            # Log the full exception message for debugging
+            print(f"Error retrieving file: {str(e)}")
+            return JsonResponse({"error": f"Error retrieving file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Add additional conditions to the query
-            query.update({
-                'project': project,
-                'is_deleted': False,  # File must not be deleted
-                'is_sample': False    # Ensure the file is not a sample (if necessary)
-            })
-
-            # Find the file
-            try:
-                file = File.objects.get(**query)
-            except File.DoesNotExist:
-                logger.error(f"File not found with query: {query}")
-                return Response({
-                    "error": "File not found",
-                    "details": {
-                        "identifier": identifier,
-                        "project_id": project_id
-                    }
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            # Construct the full file path using FILE_SERVER_PATH_FILE
-            file_path = os.path.join(FILE_SERVER_PATH_FILE, file.filename)
-            logger.info(f"Attempting to remove file at: {file_path}")
-
-            # Attempt to remove the physical file from storage
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                logger.info(f"Successfully removed file: {file.filename}")
-            else:
-                logger.error(f"File not found at path: {file_path}")
-                return Response({
-                    "error": "File storage removal failed",
-                    "details": {"filename": file.filename, "path": file_path}
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            # Soft delete the file in the database
+        # Proceed with file deletion if valid
+        print(f"Attempting to remove file: {file.filename}")
+        if service.remove_file(file.filename):
             file.is_deleted = True
-            file.save(update_fields=['is_deleted'])
-
-            return Response({
-                "message": "File deleted successfully",
-                "details": {
-                    "identifier": str(identifier),
-                    "filename": file.filename
-                }
-            }, status=status.HTTP_200_OK)
-
-        except Exception as unexpected_error:
-            # Log unexpected errors for debugging
-            logger.critical(f"Unexpected error during file deletion: {unexpected_error}", exc_info=True)
-            return Response({
-                "error": "Deletion process failed",
-                "details": str(unexpected_error)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            file.save()
+            print(f"File {file.filename} successfully deleted.")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            print(f"Failed to delete the file: {file.filename}")
+            return Response({"error": "File not found in storage or failed to delete from storage."}, status=status.HTTP_404_NOT_FOUND)
