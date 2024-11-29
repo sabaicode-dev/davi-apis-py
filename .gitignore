@@ -1,7 +1,10 @@
 # Python cache files
 __pycache__/
+docker.sh
 *.pyc
 /D:
+MongoConnection.py
+home/
 # Virtual environment folders
 venv/
 .venv/
