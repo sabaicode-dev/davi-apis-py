@@ -13,7 +13,7 @@ After cloning the repository, follow these steps to set up and run the Django RE
    ```bash
    python -m venv env
 
-   source venv/Scripts/activate
+   source env/Scripts/activate
 
    pip install -r requirements.txt
 
