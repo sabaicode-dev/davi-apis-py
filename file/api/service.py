@@ -303,14 +303,16 @@ def load_datasetHeader(filename):
     
     return None
 
-
 def remove_file(filename):
-    path_file = file_server_path_file+filename
-    if file_utile.find_file_by_filename(filename):
-        os.remove(path_file)
-        return True
+    path_file = file_server_path_file + filename
+    if file_utile.find_file_by_filename(filename):  # Ensure this function returns a valid result
+        try:
+            os.remove(path_file)  # File removal may raise an exception if the file is locked or missing
+            return True
+        except OSError as e:
+            print(f"Error removing file: {e}")
+            return False
     return False
-
 def download_file(filename):
 
     file_path=file_server_path_file+filename
