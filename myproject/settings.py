@@ -32,6 +32,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 ALLOWED_HOSTS = ['54.151.219.161']  # Replace with your actual public IP
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
