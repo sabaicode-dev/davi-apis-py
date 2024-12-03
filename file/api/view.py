@@ -123,7 +123,6 @@ class FileUploadView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 # View file headers
 class ViewHeaderView(APIView):
     permission_classes = [permissions.AllowAny]
