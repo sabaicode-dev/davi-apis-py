@@ -137,3 +137,100 @@ class ProcessCleaningFile(APIView):
             return Response(cleansed_file_data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# New code '======================'
+from .serializers import FileCleansingSerializer
+class FileCleansingAnalysisView(APIView):
+    """
+    Comprehensive file cleansing analysis view
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, project_id, file_id):
+        try:
+            # MongoDB connection
+            client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
+            db = client[settings.DATABASES['default']['NAME']]
+
+            # Find file in database
+            file = db.files.find_one({
+                "_id": ObjectId(file_id), 
+                "project_id": project_id, 
+                "is_deleted": False
+            })
+
+            if not file:
+                return Response(
+                    {"error": "File not found or deleted"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Perform data cleansing
+            filename = file.get('filename')
+            cleansing_result = data_cleansing(filename)
+
+            # Check for errors in cleansing
+            if "error" in cleansing_result:
+                return Response(
+                    {"error": cleansing_result["error"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Add additional metadata
+            cleansing_result['file_metadata'] = {
+                'filename': filename,
+                'project_id': project_id,
+                'file_id': str(file['_id'])
+            }
+
+            return Response(cleansing_result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Unexpected error in file cleansing: {str(e)}")
+            return Response(
+                {"error": "An unexpected error occurred during file analysis"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        finally:
+            # Ensure MongoDB connection is closed
+            client.close()
+
+class ProcessCleansingView(APIView):
+    """
+    View for processing file cleansing operations
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = FileCleansingSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Extract validated data
+            filename = serializer.validated_data.get('filename')
+            process_list = serializer.validated_data.get('process', [])
+
+            # Perform cleansing process
+            result = process_cleansing(filename, process_list)
+
+            # Check for errors
+            if "error" in result:
+                return Response(
+                    {"error": result["error"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error in processing cleansing: {str(e)}")
+            return Response(
+                {"error": "An unexpected error occurred during cleansing"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
