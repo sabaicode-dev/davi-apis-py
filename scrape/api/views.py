@@ -7,7 +7,6 @@ from django.http import FileResponse
 from django.shortcuts import render
 
 from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, FileQuerySerializer
-
 import os
 from utils import file_util
 import pandas as pd
@@ -36,44 +35,19 @@ class ScraperDataByUrlView(APIView):
 
 class ConfirmDataSetView(APIView):
     def post(self, request, *args, **kwargs):
+        project_id = kwargs.get('project_id')
         serializer = ConfirmDataSetSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            # Call save_file with only the confirmed filenames
-            confirmed = save_file(serializer.validated_data.get("confirmed_filename"))
 
-            # Remove files listed in rejected_filename
+        if serializer.is_valid():
+            confirmed = save_file(serializer.validated_data.get("confirmed_filename"), project_id)
             rejected = remove_file(serializer.validated_data.get("rejected_filename"))
 
-            return Response(
-                {
-                    "code": 200,
-                    "confirmed_message": confirmed,
-                    "rejected_message": rejected
-                },
-                status=status.HTTP_200_OK
-            )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request, *args, **kwargs):
-        serializer = ConfirmDataSetSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            confirmed = save_file(
-                serializer.validated_data.get("confirmed_filename")
-            )
-            rejected = remove_file(
-                serializer.validated_data.get("rejected_filename")
-            )
-
-            return Response(
-                {
-                    "code": 200,
-                    "confirmed_message": confirmed,
-                    "rejected_message": rejected
-                }, status=status.HTTP_200_OK
-            )
+            return Response({
+                "code": 200,
+                "confirmed_message": confirmed,
+                "rejected_message": rejected,
+                "project_id": project_id
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

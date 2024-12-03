@@ -19,7 +19,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/scrape/', include('scrape.api.urls')),
+    path('api/v1/', include('scrape.api.urls')),
     # upload & cleansing dataset 
     path('api/v1/', include('cleansing.api.urls')),
     # get files updated
