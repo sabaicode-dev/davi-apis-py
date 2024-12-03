@@ -83,5 +83,5 @@ jobs:
             # No Docker deployment anymore, just run the app normally
             # You can start the app directly or use another method of deployment here
             # For example, if you're using gunicorn, you can start it like this:
-            gunicorn --bind 0.0.0.0:8000 myproject.wsgi:application
+            nohup python manage.py runserver 0.0.0.0:8000
           EOF
