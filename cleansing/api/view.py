@@ -25,7 +25,7 @@ class FileUploadFindInaccurateDataView(APIView):
 
         # MongoDB connection
         client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
-        db = client[settings.DATABASES['default']['NAME']]
+        db = client[settings.DATABASES['default']['NAME']]  
 
         try:
             # Simplified query: Try to find by `_id`, fallback to filename if needed
@@ -57,6 +57,16 @@ class FileUploadFindInaccurateDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Extract counts for missing rows, duplicate rows, and outliers
+            missing_rows_count = len(result.get("missing_rows", []))
+            duplicate_rows_count = len(result.get("duplicate_rows", []))
+            outliers_count = len(result.get("outliers", {}).get("educ", []))
+
+            # Add the counts to the response result
+            result["missing_rows_count"] = missing_rows_count
+            result["duplicate_rows_count"] = duplicate_rows_count
+            result["outliers_count"] = outliers_count
+
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
@@ -66,6 +76,7 @@ class FileUploadFindInaccurateDataView(APIView):
             )
         finally:
             client.close()
+
 
 
 
