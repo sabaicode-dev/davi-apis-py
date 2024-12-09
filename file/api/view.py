@@ -167,20 +167,20 @@ class DownloadFileAPIview(APIView):
     def get(self, request, *args, **kwargs):
         filename = kwargs.get("filename")
 
-        # Check if the file exists with is_deleted being either False or None
-        file_model = get_object_or_404(
-            File,
-            filename=filename,
-            is_deleted__in=[False, None]
-        )
+        # Check for files matching the filename, excluding deleted ones
+        files = File.objects.filter(filename=filename, is_deleted__in=[False, None])
 
+        if files.exists():
+            # If multiple files are found, select the first one (or use other criteria)
+            file = files.first()  # You can modify this logic if needed to select based on certain conditions
+            
+            # Proceed with file download logic
+            response = service.download_file(file.filename)
+            if response:
+                return response
 
-        file = service.download_file(filename)
-        if file:
-            return file
-
-        return Response({"message": "file not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        # If no files are found or something went wrong
+        return Response({"message": "File not found or multiple files found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 # View file details

@@ -70,7 +70,6 @@ jobs:
             source env/bin/activate  # Activate the virtual environment
 
             # Install dependencies
-            pip install --upgrade pip
             pip install -r requirements.txt
 
             # Run migrations (this should automatically detect your MongoDB setup)
