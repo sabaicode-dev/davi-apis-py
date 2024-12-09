@@ -18,6 +18,8 @@ from django.utils.decorators import method_decorator
 from bson import ObjectId
 from django.db import transaction
 from django.http import JsonResponse
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -164,13 +166,21 @@ class DownloadFileAPIview(APIView):
 
     def get(self, request, *args, **kwargs):
         filename = kwargs.get("filename")
-        file_model = get_object_or_404(File, filename=filename, is_deleted=False)
+
+        # Check if the file exists with is_deleted being either False or None
+        file_model = get_object_or_404(
+            File,
+            filename=filename,
+            is_deleted__in=[False, None]
+        )
+
 
         file = service.download_file(filename)
         if file:
             return file
 
         return Response({"message": "file not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 # View file details
