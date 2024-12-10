@@ -304,7 +304,7 @@ def load_datasetHeader(filename):
     return None
 
 def remove_file(filename):
-    path_file = file_server_path_file + filename
+    path_file = file_server_path_file + filename  # Ensure this is the correct file path
     if file_utile.find_file_by_filename(filename):  # Ensure this function returns a valid result
         try:
             os.remove(path_file)  # File removal may raise an exception if the file is locked or missing
