@@ -367,7 +367,7 @@ class DeleteFileView(APIView):
                 logger.info(f"File {file.filename} removed from storage.")
                 # Mark the file as deleted in the database (actually delete it)
                 self._mark_file_as_deleted(file)
-                return Response(status=status.HTTP_204_NO_CONTENT)
+                return Response({"message": "File deleted successfully."}, status=status.HTTP_200_OK)
             else:
                 return Response(
                     {"error": "Failed to delete the file from storage."},
