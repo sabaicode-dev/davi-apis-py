@@ -3,57 +3,42 @@ from file.models import File
 from project.models import Project
 from bson import ObjectId
 
+
 class FileResponeSerializer(serializers.ModelSerializer):
-    project = serializers.CharField(write_only=True)
-    project_id = serializers.SerializerMethodField(read_only=True)
+    project = serializers.CharField(write_only=True)  # Accept project ID as a string for validation
+    project_id = serializers.SerializerMethodField(read_only=True)  # Return project ID as a string in response
 
     class Meta:
         model = File
-        # Explicitly list fields, excluding 'id'
-        fields = [
-            '_id', 
-            'project', 
-            'project_id', 
-            'filename', 
-            'file', 
-            'size', 
-            'type', 
-            'created_at', 
-            'uuid', 
-            'is_original', 
-            'is_deleted', 
-            'is_sample', 
-            'original_file'
-        ]
-        
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        
-        # Convert _id to string if it's not already
-        representation['_id'] = str(instance._id)
-        
-        # Ensure project_id is a string
-        if hasattr(instance, 'project') and instance.project:
-            representation['project_id'] = str(instance.project._id)
-        
-        return representation
+        fields = "__all__"
 
     def validate_project(self, value):
+        """Validate the project ID and fetch the corresponding Project instance."""
         if not ObjectId.is_valid(value):
             raise serializers.ValidationError("Invalid Project ID format.")
         try:
             project = Project.objects.get(_id=ObjectId(value))
         except Project.DoesNotExist:
             raise serializers.ValidationError("Project does not exist.")
-        return project
+        return project  # Return the Project instance
 
     def create(self, validated_data):
+        """Override create to handle project as an ObjectId."""
         project = validated_data.pop("project")
-        validated_data["project"] = project
+        validated_data["project"] = project  # Assign the validated Project instance
         return super().create(validated_data)
 
     def get_project_id(self, obj):
-        return str(obj.project._id) if obj.project else None    
+        """Return the project ID as a string in the response."""
+        return str(obj.project._id) if obj.project else None
+
+    def to_representation(self, instance):
+        """Ensure MongoDB ObjectId is serialized as a string."""
+        representation = super().to_representation(instance)
+        if isinstance(representation.get("_id"), ObjectId):
+            representation["_id"] = str(representation["_id"])
+        return representation
+
 
 class UpdateFileSerializer(serializers.ModelSerializer):
     class Meta:

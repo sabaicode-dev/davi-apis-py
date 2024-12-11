@@ -1,10 +1,8 @@
 # Python cache files
 __pycache__/
-docker.sh
 *.pyc
-/D:
+D:/
 MongoConnection.py
-home/
 # Virtual environment folders
 venv/
 .venv/

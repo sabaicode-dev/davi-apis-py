@@ -1,3 +1,6 @@
+# prepare put in shellscripts
+
+
 import os
 import uuid
 from dotenv import load_dotenv
@@ -7,11 +10,12 @@ import chardet
 import utils.file_util as util
 from rest_framework import status
 import csv
+import subprocess
+import json
 import os
 import utils.file_util as file_utile
 from django.http import HttpResponse
 import re
-
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
@@ -300,7 +304,7 @@ def load_datasetHeader(filename):
     return None
 
 def remove_file(filename):
-    path_file = file_server_path_file + filename
+    path_file = file_server_path_file + filename  # Ensure this is the correct file path
     if file_utile.find_file_by_filename(filename):  # Ensure this function returns a valid result
         try:
             os.remove(path_file)  # File removal may raise an exception if the file is locked or missing
@@ -309,17 +313,21 @@ def remove_file(filename):
             print(f"Error removing file: {e}")
             return False
     return False
+
+
 def download_file(filename):
-
-    file_path=file_server_path_file+filename
+    file_path = file_server_path_file + filename
     if file_utile.find_file_by_filename(filename):
-
         if os.path.exists(file_path):
-        
-            with open(file_path, 'rb') as file:
-        
-                response = HttpResponse(file.read(), content_type='application/octet-stream')
-                response['Content-Disposition'] = f'attachment; filename="{filename}"'
-                return response
-    
+            try:
+                with open(file_path, 'rb') as file:
+                    response = HttpResponse(file.read(), content_type='application/octet-stream')
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    return response
+            except Exception as e:
+                # Log or handle error if file read fails
+                print(f"Error reading file {filename}: {e}")
+                return None
+    else:
+        print(f"File not found in the database: {filename}")
     return None

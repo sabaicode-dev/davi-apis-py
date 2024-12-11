@@ -21,23 +21,23 @@ class FileUploadFindInaccurateDataView(APIView):
 
     def post(self, request, *args, **kwargs):
         project_id = kwargs.get("project_id")
-        file_id = kwargs.get("file_id")
+        file_identifier = kwargs.get("file_identifier")  # This is the new identifier
 
         # MongoDB connection
         client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
         db = client[settings.DATABASES['default']['NAME']]
-        print("How are uuuuuuuuuuuuuuuuu \n",db)
 
         try:
-            # Simplified query: Try to find by `_id`, fallback to filename if needed
             file = None
-            if file_id:
-                try:
-                    file = db.files.find_one({"_id": ObjectId(file_id), "is_deleted": False})
-                except Exception as e:
-                    logger.warning(f"Invalid ObjectId for file_id: {file_id}. Error: {str(e)}")
 
-            if not file:  # Fallback to find the latest file by project_id
+            # Check if file_identifier is a valid ObjectId
+            if self.is_valid_object_id(file_identifier):
+                file = db.files.find_one({"_id": ObjectId(file_identifier), "is_deleted": False})
+
+            if not file:  # If not found, fall back to finding by filename
+                file = db.files.find_one({"filename": file_identifier, "is_deleted": False})
+
+            if not file:  # Finally fallback to the latest file by project_id
                 file = db.files.find_one(
                     {"project_id": project_id, "is_deleted": False},
                     sort=[("created_at", -1)],  # Pick the most recent file
@@ -58,6 +58,16 @@ class FileUploadFindInaccurateDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Extract counts for missing rows, duplicate rows, and outliers
+            missing_rows_count = len(result.get("missing_rows", []))
+            duplicate_rows_count = len(result.get("duplicate_rows", []))
+            outliers_count = len(result.get("outliers", {}).get("educ", []))
+
+            # Add the counts to the response result
+            result["missing_rows_count"] = missing_rows_count
+            result["duplicate_rows_count"] = duplicate_rows_count
+            result["outliers_count"] = outliers_count
+
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
@@ -67,6 +77,14 @@ class FileUploadFindInaccurateDataView(APIView):
             )
         finally:
             client.close()
+
+    def is_valid_object_id(self, value):
+        """Check if a string is a valid MongoDB ObjectId."""
+        try:
+            ObjectId(value)
+            return True
+        except Exception:
+            return False
 
 
 
@@ -116,7 +134,7 @@ class ProcessCleaningFile(APIView):
 
             # Save cleansed data back to the database
             cleansed_file_data = {
-                "project": file.get("project_id"),
+                "project_id": file.get("project_id"),
                 "filename": result["filename"],
                 "file": result["filename"],
                 "size": result["size"],
