@@ -80,4 +80,3 @@ class ViewDataSetByFilenameView(APIView):
         paginated_response["filename"] = kwargs.get('filename')
 
         return Response(paginated_response)
-

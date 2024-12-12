@@ -100,29 +100,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
 
-# Database
-MONGODB_URI = os.getenv('MONGODB_URI')
-MONGODB_DB = os.getenv('MONGODB_DB')
+# Database Configuration
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+MONGODB_DB = os.getenv('MONGODB_DB', 'db_datasource')
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': MONGODB_DB,
-        'CLIENT': {
-            'host': MONGODB_URI,
-        }
-    }
-}
-
-
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
+import mongoengine
+mongoengine.connect(
+    db=MONGODB_DB, 
+    host=MONGODB_URI,
+    username=os.getenv('DATABASE_USER_NAME'),
+    password=os.getenv('DATABASE_PASSWORD')
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
