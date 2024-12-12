@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'metafile',
     'project',
     'corsheaders',
+    'aigeneratedes',
+    'datavisualization',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
