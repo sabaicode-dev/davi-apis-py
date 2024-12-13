@@ -23,6 +23,11 @@ from django.shortcuts import get_object_or_404
 import logging
 from django.db import transaction
 from django.db import connection
+from metafile.api.services.metadata_extractor import MetadataExtractor
+from metafile.models import Metadata
+import pandas as pd
+import uuid
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -62,12 +67,77 @@ class FileViewAllApiView(APIView):
 
 
 # Upload a file and associate it with a project
+# class FileUploadView(APIView):
+#     def post(self, request, *args, **kwargs):
+#         print("Request Data:", request.data)  # Debugging
+
+#         # Validate project_id
+#         project_id = request.data.get('project_id')
+#         if not project_id:
+#             return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         if not ObjectId.is_valid(project_id):
+#             return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Validate uploaded file
+#         uploaded_file = request.FILES.get('file')
+#         if not uploaded_file:
+#             return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Save the file to the specified directory
+#         base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
+#         if not os.path.exists(base_path):
+#             os.makedirs(base_path)  # Create the directory if it doesn't exist
+
+#         # Save the file to disk
+#         file_path = os.path.join(base_path, uploaded_file.name)
+#         with open(file_path, 'wb') as destination:
+#             for chunk in uploaded_file.chunks():
+#                 destination.write(chunk)
+
+#         # Determine file type based on the file extension
+#         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+#         file_type = None
+#         if file_extension == '.csv':
+#             file_type = 'csv'
+#         elif file_extension == '.txt':
+#             file_type = 'text'
+#         elif file_extension in ['.jpg', '.jpeg']:
+#             file_type = 'image'
+#         elif file_extension == '.png':
+#             file_type = 'image'
+#         elif file_extension == '.pdf':
+#             file_type = 'pdf'
+#         else:
+#             file_type = 'unknown'
+
+#         # Prepare data for the serializer
+#         data = {
+#             "filename": uploaded_file.name,
+#             "file": os.path.basename(file_path),
+#             "size": uploaded_file.size,
+#             "type": file_type,
+#             "project": project_id,  # Pass the project ID as a string
+#         }
+
+#         # Serialize the data
+#         serializer = FileResponeSerializer(data=data)
+#         if serializer.is_valid():
+#             saved_file = serializer.save()
+
+#             # Return the saved file, ensuring MongoDB _id is used instead of id
+#             response_data = FileResponeSerializer(saved_file).data
+#             return Response(response_data, status=status.HTTP_201_CREATED)
+
+#         print("Validation Errors:", serializer.errors)  # Debugging
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         print("Request Data:", request.data)  # Debugging
 
         # Validate project_id
-        project_id = request.data.get('project_id')
+        project_id = request.data.get('project_id')  # This accesses the form data field 'project_id'
         if not project_id:
             return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -75,7 +145,7 @@ class FileUploadView(APIView):
             return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate uploaded file
-        uploaded_file = request.FILES.get('file')
+        uploaded_file = request.FILES.get('file')  # This accesses the uploaded file
         if not uploaded_file:
             return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -120,13 +190,46 @@ class FileUploadView(APIView):
         if serializer.is_valid():
             saved_file = serializer.save()
 
+            # Generate metadata for the file
+            # Assuming MetadataExtractor and related methods are already set up
+
             # Return the saved file, ensuring MongoDB _id is used instead of id
             response_data = FileResponeSerializer(saved_file).data
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            return Response({
+                "success": True,
+                "message": "File uploaded and metadata generated successfully.",
+                "data": response_data
+            }, status=status.HTTP_201_CREATED)
 
-        print("Validation Errors:", serializer.errors)  # Debugging
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # If serializer is invalid
+        return Response({"error": "Failed to save file data."}, status=status.HTTP_400_BAD_REQUEST)
 
+""""""
+class MetadataView(APIView):
+    """
+    View to retrieve metadata for a specific file
+    """
+
+    def get(self, request, file_id, *args, **kwargs):
+        # Retrieve file by file_id
+        file = get_object_or_404(File, pk=file_id)
+        print("================> fileId",file_id)
+        
+        # Construct the metadata (You can expand this as needed)
+        metadata = {
+            'filename': file.filename,
+            'file_size': file.size,
+            'file_type': file.type,
+            'upload_date': file.created_at,
+            'uuid': file.uuid,
+            'project_id': file.project_id,
+            'is_original': file.is_original,
+            'is_deleted': file.is_deleted,
+            'is_sample': file.is_sample,
+            'original_file': file.original_file,
+            # Add more metadata fields if required
+        }
+        return JsonResponse({'success': True, 'metadata': metadata}, status=200)
 
 # View file headers
 class ViewHeaderView(APIView):

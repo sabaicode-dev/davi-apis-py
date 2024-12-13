@@ -9,7 +9,7 @@ urlpatterns = [
     # create project endpoint
     path('projects/', CreateProject.as_view(), name="create_project"),
     # get all projects
-    path('projects/', ListProject.as_view(), name="list_projects"),
+    path('project/', ListProject.as_view(), name="list_projects"),
     path('projects/<str:project_id>/detail/', ProjectDetailView.as_view(), name="project_detail"),
     path('projects/<str:project_id>/update/', UpdateProject.as_view(), name="update_project"),
     path('projects/<str:project_id>/delete/', DeleteProject.as_view(), name="delete_project"),
