@@ -29,7 +29,8 @@ SECRET_KEY = 'django-insecure-r$5@fi1@*@0$jx(%iahz9_@ob@t#3oorkkpss=y3jq9m!m@zt^
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '3.24.110.41']
+
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -42,14 +43,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
     'scrape',
     'file',
     'pagination',
-    'cleansing',
+    # 'cleansing',
     'metafile',
     'project',
     'corsheaders',
-    'visualization'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -69,6 +70,7 @@ CORS_ALLOW_HEADERS = [
 
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',                    # Add new
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -78,6 +80,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
+# settings.py
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',  # Your React app's origin
+]
+
+
 
 ROOT_URLCONF = 'myproject.urls'
 
@@ -100,17 +111,28 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
 
-# Database Configuration
-MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
-MONGODB_DB = os.getenv('MONGODB_DB', 'db_datasource')
+# Database
+MONGODB_URI = os.getenv('MONGODB_URI')
+MONGODB_DB = os.getenv('MONGODB_DB')
 
-import mongoengine
-mongoengine.connect(
-    db=MONGODB_DB, 
-    host=MONGODB_URI,
-    username=os.getenv('DATABASE_USER_NAME'),
-    password=os.getenv('DATABASE_PASSWORD')
-)
+DATABASES = {
+    'default': {
+        'ENGINE': 'djongo',
+        'NAME': MONGODB_DB,
+        'CLIENT': {
+            'host': MONGODB_URI,
+        }
+    }
+}
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -151,4 +173,5 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
+# New
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

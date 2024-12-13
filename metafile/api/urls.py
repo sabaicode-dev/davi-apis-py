@@ -1,13 +1,7 @@
-from django.urls import path
-from metafile.api.view import FileMetadataView, LoadFileView, DatasetViews
+from django.urls import path, include
+from django.contrib import admin
+from metafile.api.view import DatasetViews, FileHandler
 
 urlpatterns = [
-    # File upload endpoint
     path('upload/', DatasetViews.as_view(), name='upload'),
-
-    # File metadata endpoint with project and file context
-    path('file/<str:file_id>/', FileMetadataView.as_view(), name='file_metadata'),
-
-    # Load file endpoint
-    path('file/load/<str:file_id>/', LoadFileView.as_view(), name='load_file'),
 ]

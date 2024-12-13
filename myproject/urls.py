@@ -21,7 +21,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('scrape.api.urls')),
     # upload & cleansing dataset 
-    path('api/v1/', include('cleansing.api.urls')),
+    # path('api/v1/', include('cleansing.api.urls')),
     # get files updated
     path('api/v1/', include('file.api.urls')),
 
