@@ -1,8 +1,4 @@
 from django.urls import path
-from file.api.view import MetadataView
-
-from file.api.view import DatasetViews
-
 from file.api.view import (
     FileUploadView, FileDetailsViews, FileDetailsActionView, DeleteFileView,
     DownloadFileAPIview, ProjectFilesView, ViewHeaderView, FileViewAllApiView,MetadataView
@@ -19,8 +15,4 @@ urlpatterns = [
     path('files-detail-dataset/<str:uuid>/', FileDetailsActionView.as_view(), name="files-detail-file"),
     path('project/<str:project_id>/file/download/<str:filename>/', DownloadFileAPIview.as_view(), name="download-file"),
     path('all/', FileViewAllApiView.as_view(), name='view-all-file'),
-
-    # URL for metadata retrieval
-    path('api/v1/file/metadata/<str:file_id>/', DatasetViews.as_view(), name='file-metadata'),
-    path('upload/', DatasetViews.as_view(), name='upload'),
 ]

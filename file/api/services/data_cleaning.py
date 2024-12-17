@@ -22,3 +22,27 @@ def is_date_column(series):
         return True
     except (ValueError, TypeError):
         return False
+
+
+def is_date_column(series):
+    try:
+        date_formats = [
+            '%Y-%m-%d', 
+            '%m/%d/%Y', 
+            '%d-%m-%Y', 
+            '%Y/%m/%d',
+            '%d/%m/%Y'
+        ]
+        
+        for fmt in date_formats:
+            try:
+                pd.to_datetime(series.dropna(), format=fmt)
+                return True
+            except:
+                continue
+        
+        # If no specific format works, try flexible parsing
+        pd.to_datetime(series.dropna(), infer_datetime_format=True, errors='raise')
+        return True
+    except:
+        return False

@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import uuid
-from metafile.models import Metadata
 from collections import Counter
 
 from metafile.api.services import data_cleaning
@@ -24,21 +23,6 @@ class MetadataExtractor:
     self.histograms = {}
     self.metadata = []
 
-  # New code
-  def extract_and_store(self):
-      """
-      Extract metadata and store it in the Metadata model
-      """
-      # Extract metadata
-      metadata_list = self.extract()
-      # Create Metadata instance
-      metadata_instance = Metadata.objects.create(
-          file=self.file_obj,
-          columns=metadata_list,
-          total_rows=self.total_counts[self.columns[0]] if self.columns else 0,
-          total_columns=len(self.columns) if self.columns else 0
-      )
-      return metadata_instance
 
   def extract(self):
     for df in self.df_iterator:

@@ -1,11 +1,8 @@
-import mimetypes
 import os
 import re
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from bson import ObjectId
 from file.models import File
@@ -13,20 +10,17 @@ from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, Fi
 from project.models import Project
 import file.api.service as service
 from pagination.pagination import Pagination
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from bson import ObjectId
-from django.db import transaction
 from django.http import JsonResponse
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 import logging
-from django.db import transaction
-from django.db import connection
 from metafile.api.services.metadata_extractor import MetadataExtractor
-from metafile.models import Metadata
 import pandas as pd
-import uuid
+from rest_framework.exceptions import ValidationError
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.exceptions import ValidationError
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -65,6 +59,7 @@ class FileViewAllApiView(APIView):
         serializer = FileResponeSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+# File upload
 class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         print("Request Data:", request.data)  # Debugging
@@ -115,7 +110,7 @@ class FileUploadView(APIView):
             "file": os.path.basename(file_path),
             "size": uploaded_file.size,
             "type": file_type,
-            "project": project_id,  # Pass the project ID as a string
+            "project": project_id,
         }
 
         # Serialize the data
@@ -123,21 +118,15 @@ class FileUploadView(APIView):
         if serializer.is_valid():
             saved_file = serializer.save()
 
-            # Generate metadata for the file
-            # Assuming MetadataExtractor and related methods are already set up
-
             # Return the saved file, ensuring MongoDB _id is used instead of id
             response_data = FileResponeSerializer(saved_file).data
             return Response({
                 "success": True,
-                "message": "File uploaded and metadata generated successfully.",
+                "message": "File uploaded successfully.",
                 "data": response_data
             }, status=status.HTTP_201_CREATED)
+    
 
-        # If serializer is invalid
-        return Response({"error": "Failed to save file data."}, status=status.HTTP_400_BAD_REQUEST)
-
-""""""
 class MetadataView(APIView):
     """
     View to retrieve metadata for a specific file
@@ -146,8 +135,7 @@ class MetadataView(APIView):
     def get(self, request, file_id, *args, **kwargs):
         # Retrieve file by file_id
         file = get_object_or_404(File, pk=file_id)
-        print("================> fileId",file_id)
-        
+
         # Construct the metadata (You can expand this as needed)
         metadata = {
             'filename': file.filename,
@@ -430,50 +418,3 @@ class DeleteFileView(APIView):
         except Exception as e:
             logger.error(f"Error deleting file from the database: {str(e)}")
             raise Exception("Error deleting the file from the database.")
-
-
-# New code
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.views import APIView
-from metafile.api.services.data_cleaning import replace_nan_with_none  # type: ignore
-from metafile.api.services.file_loader import FileHandler
-from metafile.api.services.metadata_extractor import MetadataExtractor  # type: ignore
-from utils.load_env import FILE_LOCAL_SERVER_PATH
-        
-class DatasetViews(APIView):
-    def post(self, request, *args, **kwargs):
-        try:
-            # Ensure the request contains a file
-            if 'file' not in request.data:
-                return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            file = request.data['file']
-
-            # Instantiate the FileHandler to handle file operations
-            file_handler = FileHandler(server_path=FILE_LOCAL_SERVER_PATH)
-
-            # Upload the file to the local server and get the saved file path
-            file_name = file_handler.upload_file_to_server(file=file)
-
-            # Load the dataset (assuming it's a CSV file)
-            data = file_handler.load_dataset(file_name)
-
-            # Extract metadata from the data
-            extractor = MetadataExtractor(df_iterator=data)
-            metadata = extractor.extract()
-
-            # Replace NaN values with None
-            cleaned_metadata = replace_nan_with_none(metadata)
-
-            # Return the cleaned metadata as the response
-            return Response(cleaned_metadata, status=status.HTTP_201_CREATED)
-
-        except KeyError:
-            # Handle case where 'file' is not part of the request
-            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            print('error::: ', e)
-            # Handle all other exceptions and return the error message
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
