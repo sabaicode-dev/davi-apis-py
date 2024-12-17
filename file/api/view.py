@@ -16,11 +16,9 @@ from django.shortcuts import get_object_or_404
 import logging
 from metafile.api.services.metadata_extractor import MetadataExtractor
 import pandas as pd
-from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.exceptions import ValidationError
 
 # Setup logging
 logger = logging.getLogger(__name__)

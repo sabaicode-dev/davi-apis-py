@@ -1,10 +1,8 @@
 from django.urls import path
 from file.api.view import (
     FileUploadView, FileDetailsViews, FileDetailsActionView, DeleteFileView,
-    DownloadFileAPIview, ProjectFilesView, ViewHeaderView, FileViewAllApiView,MetadataView
+    DownloadFileAPIview, ProjectFilesView, ViewHeaderView, FileViewAllApiView
 )
-
-from file.api.view import FileUploadView, ProjectFilesView, FileViewAllApiView, MetadataView
 
 urlpatterns = [
     path('project/<str:project_id>/file/upload/', FileUploadView.as_view(), name='file-upload'),
