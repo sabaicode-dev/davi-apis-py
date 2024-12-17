@@ -65,73 +65,6 @@ class FileViewAllApiView(APIView):
         serializer = FileResponeSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-
-# Upload a file and associate it with a project
-# class FileUploadView(APIView):
-#     def post(self, request, *args, **kwargs):
-#         print("Request Data:", request.data)  # Debugging
-
-#         # Validate project_id
-#         project_id = request.data.get('project_id')
-#         if not project_id:
-#             return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if not ObjectId.is_valid(project_id):
-#             return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Validate uploaded file
-#         uploaded_file = request.FILES.get('file')
-#         if not uploaded_file:
-#             return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Save the file to the specified directory
-#         base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
-#         if not os.path.exists(base_path):
-#             os.makedirs(base_path)  # Create the directory if it doesn't exist
-
-#         # Save the file to disk
-#         file_path = os.path.join(base_path, uploaded_file.name)
-#         with open(file_path, 'wb') as destination:
-#             for chunk in uploaded_file.chunks():
-#                 destination.write(chunk)
-
-#         # Determine file type based on the file extension
-#         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-#         file_type = None
-#         if file_extension == '.csv':
-#             file_type = 'csv'
-#         elif file_extension == '.txt':
-#             file_type = 'text'
-#         elif file_extension in ['.jpg', '.jpeg']:
-#             file_type = 'image'
-#         elif file_extension == '.png':
-#             file_type = 'image'
-#         elif file_extension == '.pdf':
-#             file_type = 'pdf'
-#         else:
-#             file_type = 'unknown'
-
-#         # Prepare data for the serializer
-#         data = {
-#             "filename": uploaded_file.name,
-#             "file": os.path.basename(file_path),
-#             "size": uploaded_file.size,
-#             "type": file_type,
-#             "project": project_id,  # Pass the project ID as a string
-#         }
-
-#         # Serialize the data
-#         serializer = FileResponeSerializer(data=data)
-#         if serializer.is_valid():
-#             saved_file = serializer.save()
-
-#             # Return the saved file, ensuring MongoDB _id is used instead of id
-#             response_data = FileResponeSerializer(saved_file).data
-#             return Response(response_data, status=status.HTTP_201_CREATED)
-
-#         print("Validation Errors:", serializer.errors)  # Debugging
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         print("Request Data:", request.data)  # Debugging
@@ -227,14 +160,13 @@ class MetadataView(APIView):
             'is_deleted': file.is_deleted,
             'is_sample': file.is_sample,
             'original_file': file.original_file,
-            # Add more metadata fields if required
         }
         return JsonResponse({'success': True, 'metadata': metadata}, status=200)
 
 # View file headers
 class ViewHeaderView(APIView):
     permission_classes = [permissions.AllowAny]
-
+    
     def get(self, request, *args, **kwargs):
         filename = kwargs["filename"]
         result = service.load_datasetHeader(filename=filename)
@@ -498,3 +430,50 @@ class DeleteFileView(APIView):
         except Exception as e:
             logger.error(f"Error deleting file from the database: {str(e)}")
             raise Exception("Error deleting the file from the database.")
+
+
+# New code
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.views import APIView
+from metafile.api.services.data_cleaning import replace_nan_with_none  # type: ignore
+from metafile.api.services.file_loader import FileHandler
+from metafile.api.services.metadata_extractor import MetadataExtractor  # type: ignore
+from utils.load_env import FILE_LOCAL_SERVER_PATH
+        
+class DatasetViews(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            # Ensure the request contains a file
+            if 'file' not in request.data:
+                return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            file = request.data['file']
+
+            # Instantiate the FileHandler to handle file operations
+            file_handler = FileHandler(server_path=FILE_LOCAL_SERVER_PATH)
+
+            # Upload the file to the local server and get the saved file path
+            file_name = file_handler.upload_file_to_server(file=file)
+
+            # Load the dataset (assuming it's a CSV file)
+            data = file_handler.load_dataset(file_name)
+
+            # Extract metadata from the data
+            extractor = MetadataExtractor(df_iterator=data)
+            metadata = extractor.extract()
+
+            # Replace NaN values with None
+            cleaned_metadata = replace_nan_with_none(metadata)
+
+            # Return the cleaned metadata as the response
+            return Response(cleaned_metadata, status=status.HTTP_201_CREATED)
+
+        except KeyError:
+            # Handle case where 'file' is not part of the request
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print('error::: ', e)
+            # Handle all other exceptions and return the error message
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
