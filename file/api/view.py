@@ -18,6 +18,13 @@ from django.utils.decorators import method_decorator
 from bson import ObjectId
 from django.db import transaction
 from django.http import JsonResponse
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+import logging
+from django.db import transaction
+from django.db import connection
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # View files by project ID
 class ProjectFilesView(APIView):
@@ -164,13 +171,21 @@ class DownloadFileAPIview(APIView):
 
     def get(self, request, *args, **kwargs):
         filename = kwargs.get("filename")
-        file_model = get_object_or_404(File, filename=filename, is_deleted=False)
 
-        file = service.download_file(filename)
-        if file:
-            return file
+        # Check for files matching the filename, excluding deleted ones
+        files = File.objects.filter(filename=filename, is_deleted__in=[False, None])
 
-        return Response({"message": "file not found"}, status=status.HTTP_404_NOT_FOUND)
+        if files.exists():
+            # If multiple files are found, select the first one (or use other criteria)
+            file = files.first()  # You can modify this logic if needed to select based on certain conditions
+            
+            # Proceed with file download logic
+            response = service.download_file(file.filename)
+            if response:
+                return response
+
+        # If no files are found or something went wrong
+        return Response({"message": "File not found or multiple files found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 # View file details
@@ -321,33 +336,63 @@ class DeleteFileView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def delete(self, request, *args, **kwargs):
-        # Get the file's ObjectId from the URL parameters (file_id)
         file_id = kwargs.get('file_id')
 
-        # Check if file_id is a valid 24-character ObjectId string
-        if len(file_id) != 24:
-            return JsonResponse({"error": "Invalid ObjectId format. It should be 24 characters long."}, status=status.HTTP_400_BAD_REQUEST)
+        # Validate the file ID format
+        if not ObjectId.is_valid(file_id):
+            return Response(
+                {"error": "Invalid file ID format."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            # Query the file by its _id (MongoDB ObjectId) and other filters
-            print(f"Attempting to retrieve file with ID: {file_id}")
-            file = File.objects.get(_id=ObjectId(file_id), is_deleted=False, is_sample=False)
-            print(f"File retrieved: {file}")
-        except File.DoesNotExist:
-            print(f"File with ID {file_id} does not exist or has been deleted.")
-            return Response({"error": "File not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            # Log the full exception message for debugging
-            print(f"Error retrieving file: {str(e)}")
-            return JsonResponse({"error": f"Error retrieving file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            # Fetch the file by _id from the database
+            file = File.objects.filter(_id=ObjectId(file_id)).first()
+            if not file:
+                logger.error(f"File with ID {file_id} not found in the database.")
+                return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Proceed with file deletion if valid
-        print(f"Attempting to remove file: {file.filename}")
-        if service.remove_file(file.filename):
-            file.is_deleted = True
-            file.save()
-            print(f"File {file.filename} successfully deleted.")
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            print(f"Failed to delete the file: {file.filename}")
-            return Response({"error": "File not found in storage or failed to delete from storage."}, status=status.HTTP_404_NOT_FOUND)
+            logger.info(f"Found file: {file.filename} with ID {file._id}")
+
+            # Check if the file is already deleted
+            if file.is_deleted:
+                return Response({"error": "File has already been deleted."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if the file is a sample file (prevent deletion)
+            if file.is_sample:
+                return Response({"error": "Cannot delete a sample file."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Proceed with file removal from storage
+            if service.remove_file(file.filename):
+                logger.info(f"File {file.filename} removed from storage.")
+                # Mark the file as deleted in the database (actually delete it)
+                self._mark_file_as_deleted(file)
+                return Response({"message": "File deleted successfully."}, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {"error": "Failed to delete the file from storage."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        except Exception as e:
+            logger.error(f"Error deleting file: {str(e)}")
+            return JsonResponse({"error": f"Error deleting file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _mark_file_as_deleted(self, file):
+        """
+        Marks the file as deleted in the database and removes the file record entirely.
+        """
+        try:
+            # Log the attempt to delete the file record from the database
+            logger.info(f"Attempting to delete file {file.filename} with _id {file._id} from the database.")
+            
+            # Delete the file record from the database
+            deleted_count, _ = File.objects.filter(_id=file._id).delete()
+            
+            if deleted_count > 0:
+                logger.info(f"File {file.filename} successfully deleted from the database.")
+            else:
+                logger.warning(f"File {file.filename} not found in the database.")
+        except Exception as e:
+            logger.error(f"Error deleting file from the database: {str(e)}")
+            raise Exception("Error deleting the file from the database.")
