@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from utils.file_util import get_file_extension, FILE_LOCAL_SERVER_PATH
+from utils.file_util import get_file_extension, file_server_path_file
 import logging
 import os
 import scipy.stats as stats
@@ -11,7 +11,7 @@ def data_cleansing(filename):
     """
     Analyze the given file for missing rows, duplicates, outliers, and data types.
     """
-    file_path = os.path.join(FILE_LOCAL_SERVER_PATH, filename)
+    file_path = os.path.join(file_server_path_file, filename)
 
     if not os.path.exists(file_path):
         logger.error(f"File not found: {file_path}")
@@ -77,7 +77,7 @@ def process_cleansing(filename, process_list):
     """
     Cleanses the given file based on the specified processes and saves the result as a new file.
     """
-    file_path = os.path.join(FILE_LOCAL_SERVER_PATH, filename)
+    file_path = os.path.join(file_server_path_file, filename)
 
     if not os.path.exists(file_path):
         logger.error(f"File not found: {file_path}")
@@ -97,7 +97,7 @@ def process_cleansing(filename, process_list):
 
         # Save cleansed data to a new file
         cleansed_filename = f"cleansed_{filename}"
-        cleansed_path = os.path.join(FILE_LOCAL_SERVER_PATH, cleansed_filename)
+        cleansed_path = os.path.join(file_server_path_file, cleansed_filename)
         data.to_csv(cleansed_path, index=False)
 
         logger.info(f"Cleansing completed. Saved to {cleansed_path}")
