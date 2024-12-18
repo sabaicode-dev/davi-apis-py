@@ -18,7 +18,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from the .env.stage file
-dotenv_path = os.path.join(BASE_DIR, '.env.stage')
+dotenv_path = os.path.join(BASE_DIR, '.env.development')
 load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
@@ -166,9 +166,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
 

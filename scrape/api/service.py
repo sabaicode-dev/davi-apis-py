@@ -177,8 +177,6 @@ def remove_file(list_of_files):
 
 
 
-
-
 def load_dataset(filename, size=0):
 
     file_path = file_server_path_file+filename
