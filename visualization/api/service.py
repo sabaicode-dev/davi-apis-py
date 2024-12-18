@@ -36,7 +36,6 @@ valid_chart_types = {
     'bubble_chart': (True, True),   # Requires both labels and numbers.
     'radar_chart': (True, True),    # Requires both labels and numbers.
     'column_chart': (True, True),   # Requires both labels and numbers.
-
 }
 
 def get_file_extension(filename):
@@ -148,7 +147,6 @@ def is_number(data,column):
         return False
 
 
-
 def generateBASEURL(str_url):
     return file_base_url+str_url+"/"
     
@@ -224,7 +222,6 @@ def generate_waterfall(data, x_axis, y_axis):
     return None
    
 def generate_column_chart(data, x_axis, y_axis):
-
     
     if x_axis:
 
@@ -251,27 +248,48 @@ def generate_bubble_chart(data,x_axis,y_axis):
 
     if x_axis:
 
+        # Create a new figure
         plt.figure(figsize=(15, 8)) 
+        
+        # Get the aggregated data
         counts = find_sum(data, x_axis, y_axis)
-        colors = np.random.rand(len(counts)) 
-        z = np.random.rand(len(counts))
-        print(len(counts))
 
-        # Replace this line in your code
-        plt.scatter(counts[str(x_axis)], counts["sum"],  s=counts["sum"]*1000, marker='o', c=colors, label=x_axis)  
+        # Normalize bubble size and clip it to avoid extreme sizes
+        bubble_size = counts["sum"] * 10  # Scale the bubble size (adjust multiplier as needed)
+        bubble_size = np.clip(bubble_size, 50, 2000)  # Avoid very small or very large bubbles
 
+        # Normalize for color scale based on 'sum'
+        norm = plt.Normalize(min(counts["sum"]), max(counts["sum"]))  
+        colors = plt.cm.viridis(norm(counts["sum"]))  # Using 'viridis' colormap
+
+        # Create the scatter plot (Bubble chart)
+        plt.scatter(
+            counts[str(x_axis)], 
+            counts["sum"],  
+            s=bubble_size,  # Size of the bubble
+            marker='o', 
+            c=colors,  # Color based on 'sum'
+            label=x_axis
+        )
+
+        # Add labels and title
         plt.xlabel(str(x_axis))   
-        plt.ylabel("sum of "+str(y_axis))
+        plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
-        plt.ylim([0, 15])
-        plt.legend()  # Add legend if multiple lines
+        
+        # Adjust y-axis limits dynamically based on data
+        plt.ylim([min(counts["sum"]) * 0.9, max(counts["sum"]) * 1.1])
+        
+        # Show legend
+        plt.legend()
 
+        # Save the plot to file
         filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize,transparent=True)
+        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
 
-    
+        # Return the image URL
         return {
-            "_id":str(uuid.uuid4().hex),
+            "_id": str(uuid.uuid4().hex),
             "img": generateBASEURL(filename_visualize)
         }
 
@@ -397,7 +415,6 @@ def generate_line_chart(data, x_axis, y_axis):
     return None
     
 def generate_bar_chart(data, x_axis, y_axis):
-
     
     if x_axis:
 
