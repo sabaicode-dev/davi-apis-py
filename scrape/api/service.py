@@ -179,6 +179,10 @@ def remove_file(list_of_files):
             message_response.append({"message": f"Error occurred while deleting {filename}: {str(e)}"})
     return message_response
 
+
+
+
+
 def load_dataset(filename, size=0):
     file_path = os.path.join(file_server_path_file, filename)
     type_file = get_file_extension(filename).replace('.', "").strip()

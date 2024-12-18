@@ -20,17 +20,28 @@ from scrape.api.service import scrape_to_csv, save_file, remove_file, load_datas
 from scrape.api.serializers import ScrapeDataByUrlSerializer, ConfirmDataSetSerializer
 from django.http import Http404
 from pagination.pagination import Pagination
-
+from bson import ObjectId
 
 class ScraperDataByUrlView(APIView):
     def post(self, request, *args, **kwargs):
+        # Fetch project_id from the URL
+        project_id = kwargs.get('project_id')
+
+        # Validate project_id
+        if not project_id:
+            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ObjectId.is_valid(project_id):
+            return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and process the URL data
         serializer = ScrapeDataByUrlSerializer(data=request.data)
-        
         if serializer.is_valid():
             result = scrape_to_csv(serializer.validated_data.get("url"))
             return Response(result, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class ConfirmDataSetView(APIView):

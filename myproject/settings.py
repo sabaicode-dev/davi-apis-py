@@ -18,7 +18,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from the .env.stage file
-dotenv_path = os.path.join(BASE_DIR, '.env.stage')
+dotenv_path = os.path.join(BASE_DIR, '.env.development')
 load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     'metafile',
     'project',
     'corsheaders',
-    'visualization'
+    'visualization',
+    'image_visualize'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -155,12 +156,15 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+# file
+MEDIA_URL = '/media/'
+MEDIA_ROOT = 'D://SabaiCode//Project//davi-apis//server//images//'
+
+STATIC_URL = '/static/'
+STATIC_ROOT = 'D://SabaiCode//Project//davi-apis//server//static//'
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
