@@ -250,3 +250,24 @@ class ProcessCleaningFile(APIView):
             {"project_id": project_id, "is_deleted": False},
             sort=[("created_at", -1)],
         )
+    
+# View for retriev metadata
+from cleansing.api.services.metadata_service import MetadataService
+from cleansing.api.serializers import MetadataSerializer
+
+class MetadataDetailView(APIView):
+    def get(self, request, metadata_id):
+        if not metadata_id:
+            return Response({"error": "Metadata ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ObjectId.is_valid(metadata_id):
+            return Response({"error": "Invalid metadata ID format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        service = MetadataService()
+        metadata = service.get_metadata_by_id(metadata_id)
+        
+        if metadata:
+            # No need for serializer if it's already a dict
+            return Response(metadata, status=status.HTTP_200_OK)
+
+        return Response({"error": "Metadata not found or deleted"}, status=status.HTTP_404_NOT_FOUND)

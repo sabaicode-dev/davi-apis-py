@@ -15,7 +15,8 @@ class Metadata(models.Model):
 
 
 class Metadata(models.Model):
-    _id = models.ObjectIdField(primary_key=True, editable=False)
+    # => _id = models.ObjectIdField(primary_key=True, editable=False)
+    _id = djongo_models.ObjectIdField(primary_key=True, editable=False)
     file_id = models.CharField(max_length=255)
     project_id = models.CharField(max_length=255)
     metadata = models.JSONField()

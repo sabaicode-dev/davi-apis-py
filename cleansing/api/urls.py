@@ -1,5 +1,5 @@
 from django.urls import path
-from cleansing.api.view import FileUploadFindInaccurateDataView, ProcessCleaningFile
+from cleansing.api.view import FileUploadFindInaccurateDataView, ProcessCleaningFile,MetadataDetailView
 urlpatterns = [
     path(
         "project/<str:project_id>/file/<str:file_identifier>/find-anaccurate-file/",
@@ -9,6 +9,11 @@ urlpatterns = [
     path(
         "project/<str:project_id>/file/<str:file_identifier>/processing-cleaning-file/",
         ProcessCleaningFile.as_view(),
+        name="processing-cleaning",
+    ),
+    path(
+        "metadata/<str:metadata_id>/",
+        MetadataDetailView.as_view(),
         name="processing-cleaning",
     )
 ]

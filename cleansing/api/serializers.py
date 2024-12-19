@@ -37,10 +37,19 @@ class ProcessFileCleansingSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"The file '{value}' does not exist.")
         return value
 
-
+# Serializer  for metadata
 from cleansing.models import Metadata
+from bson import ObjectId
+
+class ObjectIdField(serializers.Field):
+    def to_representation(self, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
 class MetadataSerializer(serializers.ModelSerializer):
+    _id = ObjectIdField()  # Use the custom field for _id
+
     class Meta:
         model = Metadata
         fields = '__all__'
