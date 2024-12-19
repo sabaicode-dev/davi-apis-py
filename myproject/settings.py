@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'metafile',
     'project',
     'corsheaders',
-    'visualization'
+    'visualization',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
