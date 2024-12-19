@@ -36,3 +36,11 @@ class ProcessFileCleansingSerializer(serializers.Serializer):
         if not file_exists:
             raise serializers.ValidationError(f"The file '{value}' does not exist.")
         return value
+
+
+from cleansing.models import Metadata
+
+class MetadataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Metadata
+        fields = '__all__'

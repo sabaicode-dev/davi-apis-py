@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     'scrape',
     'file',
     'pagination',
-    # 'cleansing',
+    'cleansing',
     'metafile',
     'project',
     'corsheaders',
