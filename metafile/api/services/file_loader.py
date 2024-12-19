@@ -1,10 +1,12 @@
 import pandas as pd
 import utils.file_utils as file_utils
 from rest_framework.exceptions import ValidationError
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FileHandler:
-    ALLOWED_EXTENSIONS_FILE = ['csv', 'json', 'txt', 'xlsx', 'xls']
+    ALLOWED_EXTENSIONS_FILE = ['.csv', 'json', 'txt', 'xlsx', 'xls']
 
 
     def __init__(self, server_path):
@@ -21,20 +23,20 @@ class FileHandler:
             print(f"Error detecting separator: {e}")
             return ','  # Default to comma if detection fails
 
-
     def upload_file_to_server(self, file):
-        file_extension = file_utils.get_file_extension(str(file))
-        print('ext::: ', file_extension)
-        if file_extension not in self.ALLOWED_EXTENSIONS_FILE:
-            raise ValidationError("File type not supported.")
-        
         try:
+            file_extension = file_utils.get_file_extension(str(file))
+            logger.info(f"Uploaded file extension: {file_extension}")
+
+            if file_extension not in self.ALLOWED_EXTENSIONS_FILE:
+                raise ValidationError(f"Unsupported file type: {file_extension}")
+
             file_name = file_utils.handle_uploaded_file(file)
-            print('filename::: ', file_name)
+            logger.info(f"File uploaded successfully: {file_name}")
             return file_name
         except Exception as e:
-            print('Error:', e)
-            raise e
+            logger.error(f"File upload error: {str(e)}", exc_info=True)
+            raise
 
 
     def load_dataset(self, file_name, chunksize=1000):

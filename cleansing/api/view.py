@@ -5,17 +5,14 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from cleansing.api.service import data_cleansing, process_cleansing
-import logging
+from metafile.api.services.file_loader import FileHandler
+from utils.file_util import file_server_path_file
+from metafile.api.services.data_cleaning import replace_nan_with_none
+from metafile.api.services.metadata_extractor import MetadataExtractor
+from metafile.api.service import MetadataService
 from datetime import datetime
 import uuid
-from cleansing.api.services.file_loader import FileHandler
-from cleansing.api.services.metadata_extractor import MetadataExtractor
-from cleansing.api.services.data_cleaning import replace_nan_with_none
-from utils.file_util import file_server_path_file
-from cleansing.api.services.metadata_service import MetadataService
-
-
-from file.models import File
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +145,44 @@ class FileUploadFindInaccurateDataView(APIView):
             {"project_id": project_id, "is_deleted": False},
             sort=[("created_at", -1)],
         )
+    
+class DatasetViews(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            # Ensure the request contains a file
+            if 'file' not in request.data:
+                return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            file = request.data['file']
+
+            # Instantiate the FileHandler to handle file operations
+            file_handler = FileHandler(server_path=file_server_path_file)
+
+            # Upload the file to the local server and get the saved file path
+            file_name = file_handler.upload_file_to_server(file=file)
+
+            # Load the dataset (assuming it's a CSV file)
+            data = file_handler.load_dataset(file_name)
+
+            # Extract metadata from the data
+            extractor = MetadataExtractor(df_iterator=data)
+            metadata = extractor.extract()
+
+            # Replace NaN values with None
+            cleaned_metadata = replace_nan_with_none(metadata)
+
+            # Return the cleaned metadata as the response
+            return Response(cleaned_metadata, status=status.HTTP_201_CREATED)
+
+        except KeyError:
+            # Handle case where 'file' is not part of the request
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print('error::: ', e)
+            # Handle all other exceptions and return the error message
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ProcessCleaningFile(APIView):
     def post(self, request, *args, **kwargs):
@@ -250,24 +285,3 @@ class ProcessCleaningFile(APIView):
             {"project_id": project_id, "is_deleted": False},
             sort=[("created_at", -1)],
         )
-    
-# View for retriev metadata
-from cleansing.api.services.metadata_service import MetadataService
-from cleansing.api.serializers import MetadataSerializer
-
-class MetadataDetailView(APIView):
-    def get(self, request, metadata_id):
-        if not metadata_id:
-            return Response({"error": "Metadata ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not ObjectId.is_valid(metadata_id):
-            return Response({"error": "Invalid metadata ID format"}, status=status.HTTP_400_BAD_REQUEST)
-
-        service = MetadataService()
-        metadata = service.get_metadata_by_id(metadata_id)
-        
-        if metadata:
-            # No need for serializer if it's already a dict
-            return Response(metadata, status=status.HTTP_200_OK)
-
-        return Response({"error": "Metadata not found or deleted"}, status=status.HTTP_404_NOT_FOUND)

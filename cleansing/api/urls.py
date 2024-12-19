@@ -1,5 +1,7 @@
 from django.urls import path
-from cleansing.api.view import FileUploadFindInaccurateDataView, ProcessCleaningFile,MetadataDetailView
+from cleansing.api.view import FileUploadFindInaccurateDataView, ProcessCleaningFile
+from metafile.api.view import MetadataDetailView
+
 urlpatterns = [
     path(
         "project/<str:project_id>/file/<str:file_identifier>/find-anaccurate-file/",

@@ -1,16 +1,25 @@
-from django.db import models
-from file.models import File  # Assuming your File model is in the 'file' app
+# from django.db import models
+# from djongo import models as djongo_models
+# from bson import ObjectId
 
-class Metadata(models.Model):
-    metadata_id = models.CharField(max_length=255, unique=True)  # Metadata ID (could be UUID)
-    file = models.ForeignKey(File, on_delete=models.CASCADE)  # Link to the uploaded file
-    column_order = models.JSONField(default=dict)  # Store column order
-    data_types = models.JSONField(default=dict)  # Store data types
-    numeric_stats = models.JSONField(default=dict)  # Store numeric stats
-    string_stats = models.JSONField(default=dict)  # Store string stats
-    datetime_stats = models.JSONField(default=dict)  # Store datetime stats
-    unique_values = models.JSONField(default=dict)  # Store unique values for columns
-    created_at = models.DateTimeField(auto_now_add=True)  # Store creation time
+# class Metadata(models.Model):
+#     _id = djongo_models.ObjectIdField(primary_key=True)
+#     file_id = models.CharField(max_length=255)
+#     project_id = models.CharField(max_length=255)
+#     metadata = djongo_models.JSONField()
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Metadata for {self.file.filename}"
+#     class Meta:
+#         db_table = 'metadata'
+#         unique_together = ('file_id', 'project_id')
+
+# class Metadata(models.Model):
+#     _id = djongo_models.ObjectIdField(primary_key=True, editable=False)
+#     file_id = models.CharField(max_length=255)
+#     project_id = models.CharField(max_length=255)
+#     metadata = models.JSONField()
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     class Meta:
+#         db_table = 'metadata'
+#         unique_together = ('file_id', 'project_id')

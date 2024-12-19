@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from bson import ObjectId
 from datetime import datetime
-from cleansing.api.services.data_cleaning import convert_numpy_types
+from metafile.api.services.data_cleaning import convert_numpy_types
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +110,6 @@ class MetadataService:
                 item['_id'] = str(item['_id'])
         return metadata
 
-
-    # ================= Get metada vis metadata_id ================
     def get_metadata_by_id(self, metadata_id):
         try:
             if not ObjectId.is_valid(metadata_id):

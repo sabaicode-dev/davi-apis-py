@@ -38,7 +38,7 @@ class ProcessFileCleansingSerializer(serializers.Serializer):
         return value
 
 # Serializer  for metadata
-from cleansing.models import Metadata
+from metafile.api.models import Metadata
 from bson import ObjectId
 
 class ObjectIdField(serializers.Field):
