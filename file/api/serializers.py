@@ -27,7 +27,7 @@ class FileResponeSerializer(serializers.ModelSerializer):
         project = validated_data.pop("project")
         validated_data["project"] = project  # Assign the validated Project instance
         return super().create(validated_data)
-
+                
     def get_project_id(self, obj):
         """Return the project ID as a string in the response."""
         return str(obj.project._id) if obj.project else None

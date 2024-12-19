@@ -11,9 +11,9 @@ After cloning the repository, follow these steps to set up and run the Django RE
 
 1. **Create a virtual environment**:
    ```bash
-   python -m venv env
+   python -m env env
 
-   source venv/Scripts/activate
+   source env/Scripts/activate
 
    pip install -r requirements.txt
 
