@@ -3,7 +3,6 @@ from file.models import File
 from project.models import Project
 from bson import ObjectId
 
-print("Mich hx Jivit")
 
 class FileResponeSerializer(serializers.ModelSerializer):
     project = serializers.CharField(write_only=True)  # Accept project ID as a string for validation

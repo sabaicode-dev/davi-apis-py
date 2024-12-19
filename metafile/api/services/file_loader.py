@@ -10,7 +10,6 @@ class FileHandler:
     def __init__(self, server_path):
         self.server_path = server_path
 
-
     @staticmethod
     def detect_separator(file_path):
         try:

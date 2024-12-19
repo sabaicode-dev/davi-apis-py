@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  # Deploy only when pushing to the main branch
+      - sophearum # Deploy only when pushing to the main branch
 
 jobs:
   deploy:
@@ -34,10 +34,10 @@ jobs:
           # Create a temporary directory and copy all project files (excluding unwanted files)
           mkdir -p temp_dir
           rsync -a --exclude='.git' --exclude='.github' . temp_dir/
-          
+
           # Compress the temp directory into app.tar.gz
           tar -czf app.tar.gz -C temp_dir .  
-          
+
           # Clean up the temp directory
           rm -rf temp_dir
 
