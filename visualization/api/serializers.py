@@ -23,11 +23,10 @@ VISUALIZATION = (
 )
 
 class VisualizationSerializer(serializers.Serializer):
-  
     chart_name = serializers.ChoiceField(choices=VISUALIZATION)
-    x_axis =serializers.CharField(max_length=200)
+    x_axis = serializers.CharField(max_length=200)
     y_axis = serializers.CharField(max_length=200)
-    file_uuid = serializers.UUIDField()
+    file_id = serializers.CharField()  # Change file_uuid to file_id
 
 
 
@@ -57,9 +56,6 @@ class FindKPINumberSerializer(serializers.Serializer):
         ("median","median"),
     ]
     aggregation = serializers.ChoiceField(choices=AGGREGATION_CHOICES)
-
-
-
 
 
 class FindKPISerializer(serializers.Serializer):
@@ -95,7 +91,7 @@ class FindKPISerializer(serializers.Serializer):
     type_field = serializers.ChoiceField(choices=TYPE_FIELD_CHOICES)
     aggregation = serializers.ChoiceField(choices=AGGREGATION_CATEGORY_CHOICES)
     chart_name = serializers.ChoiceField(choices=VISUALIZATION_CHOICES)
-    file_uuid = serializers.UUIDField()
+    file_id = serializers.CharField()
     fields = serializers.ListField(
         child=serializers.CharField(max_length=200),
         required=True
@@ -117,6 +113,7 @@ class FindKPISerializer(serializers.Serializer):
         elif data['type_field'] == 'category' and not isinstance(data.get('fields'), list):
             raise serializers.ValidationError("Field must be a string for type 'string'")
         return data
+
 
 
 class LineChartSerializer(serializers.Serializer):
