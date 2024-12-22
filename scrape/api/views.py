@@ -7,7 +7,6 @@ from django.http import FileResponse
 from django.shortcuts import render
 
 from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, FileQuerySerializer
-
 import os
 from utils import file_util
 import pandas as pd
@@ -21,12 +20,22 @@ from scrape.api.service import scrape_to_csv, save_file, remove_file, load_datas
 from scrape.api.serializers import ScrapeDataByUrlSerializer, ConfirmDataSetSerializer
 from django.http import Http404
 from pagination.pagination import Pagination
-
+from bson import ObjectId
 
 class ScraperDataByUrlView(APIView):
     def post(self, request, *args, **kwargs):
+        # Fetch project_id from the URL
+        project_id = kwargs.get('project_id')
+
+        # Validate project_id
+        if not project_id:
+            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ObjectId.is_valid(project_id):
+            return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and process the URL data
         serializer = ScrapeDataByUrlSerializer(data=request.data)
-        
         if serializer.is_valid():
             result = scrape_to_csv(serializer.validated_data.get("url"))
             return Response(result, status=status.HTTP_200_OK)
@@ -34,46 +43,22 @@ class ScraperDataByUrlView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 class ConfirmDataSetView(APIView):
     def post(self, request, *args, **kwargs):
+        project_id = kwargs.get('project_id')
         serializer = ConfirmDataSetSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            # Call save_file with only the confirmed filenames
-            confirmed = save_file(serializer.validated_data.get("confirmed_filename"))
 
-            # Remove files listed in rejected_filename
+        if serializer.is_valid():
+            confirmed = save_file(serializer.validated_data.get("confirmed_filename"), project_id)
             rejected = remove_file(serializer.validated_data.get("rejected_filename"))
 
-            return Response(
-                {
-                    "code": 200,
-                    "confirmed_message": confirmed,
-                    "rejected_message": rejected
-                },
-                status=status.HTTP_200_OK
-            )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request, *args, **kwargs):
-        serializer = ConfirmDataSetSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            confirmed = save_file(
-                serializer.validated_data.get("confirmed_filename")
-            )
-            rejected = remove_file(
-                serializer.validated_data.get("rejected_filename")
-            )
-
-            return Response(
-                {
-                    "code": 200,
-                    "confirmed_message": confirmed,
-                    "rejected_message": rejected
-                }, status=status.HTTP_200_OK
-            )
+            return Response({
+                "code": 200,
+                "confirmed_message": confirmed,
+                "rejected_message": rejected,
+                "project_id": project_id
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

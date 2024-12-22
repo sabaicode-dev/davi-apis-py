@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - sophearum # Deploy only when pushing to the main branch
+      - dontdeploy # Deploy only when pushing to the main branch
 
 jobs:
   deploy:
@@ -20,12 +20,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # Step 3: Verify docker-compose.yml exists in the root
+      # Step 3: Verify docker-compose.yml exists in the root (skip since no Docker)
       - name: Verify docker-compose.yml Exists
         run: |
-          if [ ! -f docker-compose.yml ]; then
-            echo "Error: docker-compose.yml not found in the root directory."
-            exit 1
+          if [ -f docker-compose.yml ]; then
+            echo "Warning: docker-compose.yml found, but Docker is not used in this setup."
           fi
 
       # Step 4: Compress project files and upload to EC2
@@ -77,25 +76,12 @@ jobs:
             # Run migrations (this should automatically detect your MongoDB setup)
             python manage.py migrate --noinput
 
-            # Check if Docker is installed
-            if ! command -v docker &> /dev/null; then
-              echo "Docker not found, installing..."
-              sudo apt install -y docker.io
-              sudo usermod -aG docker $USER
-              newgrp docker
-            fi
-
-            # Check if Docker Compose is installed
-            if ! command -v docker-compose &> /dev/null; then
-              echo "Docker Compose not found, installing..."
-              sudo apt install -y docker-compose
-            fi
-
             # Ensure directories are in place
             mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
             chmod -R 755 /home/${{ secrets.AWS_EC2_USER }}/app/server/files
 
-            # Deploy with Docker Compose (this will rebuild and start the containers)
-            docker-compose down  # Stop any running containers
-            docker-compose up --build -d  # Rebuild and start containers in detached mode
+            # No Docker deployment anymore, just run the app normally
+            # You can start the app directly or use another method of deployment here
+            # For example, if you're using gunicorn, you can start it like this:
+            nohup python manage.py runserver 0.0.0.0:8000
           EOF

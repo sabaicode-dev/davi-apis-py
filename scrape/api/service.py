@@ -8,8 +8,8 @@ from file.models import File
 from django.forms.models import model_to_dict
 import csv
 import chardet
-
-
+from bson import ObjectId
+from project.models import Project
 
 # Load environment variables
 dotenv_path_dev = '.env'
@@ -122,36 +122,59 @@ def remove_file_server(filename):
     return False
 
 
-def save_file(list_of_files):
+def save_file(list_of_files, project_id=None):
     message = []
+    confirmed_files = []  # List to hold confirmed files
     for filename in list_of_files:
-        # Save file information without a user association
+        # Save file with the associated project_id
+        try:
+            project = Project.objects.get(_id=project_id)  # Use _id instead of id
+        except Project.DoesNotExist:
+            return {"message": f"Project with _id {project_id} does not exist."}
+
         file = File(
             filename=filename,
             file=filename,
             size=get_file_size(filename),
             type=str(get_file_extension(filename)).replace(".", ""),
+            project=project  # Associate the file with the project
         )
-        file.save()
-        message.append(model_to_dict(file))
 
-    return message
-    pass
+        # Save file object
+        file.save()
+        
+        # Confirm the file and add it to the confirmed files list
+        confirmed_files.append(model_to_dict(file))  # Convert file object to dict
+
+        message.append({
+            "message": f"File {filename} has been successfully saved."
+        })
+
+    # Return the confirmation for all files that were processed
+    return {
+        "code": 200,
+        "confirmed_message": {"message": "Files successfully confirmed."},
+        "confirmed_files": confirmed_files,  # Return the full file details
+        "project_id": project_id
+    }
 
 
 def remove_file(list_of_files):
-    message_respone = []
+    message_response = []
     for filename in list_of_files:
         message = []
         if find_file_by_filename(filename):
-
-            remove_file_server(filename)
-            message = {"message": "filename ${filename} is deleted."}
-
+            try:
+                remove_file_server(filename)
+                message = {"message": f"File {filename} deleted successfully."}
+            except Exception as e:
+                message = {"message": f"Error occurred while deleting {filename}: {str(e)}"}
         else:
-            message = {"message": "filename ${filename} is not found."}
-        message_respone.append(message)
-    return message_respone
+            message = {"message": f"File {filename} not found."}
+        
+        message_response.append(message)
+    return message_response
+
 
 
 def load_dataset(filename, size=0):
