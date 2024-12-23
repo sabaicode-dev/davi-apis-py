@@ -4,6 +4,7 @@ from utils.file_util import get_file_extension, file_server_path_file
 import logging
 import os
 import scipy.stats as stats
+import uuid
 
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,6 @@ def data_cleansing(filename):
         logger.error(f"Error during data cleansing: {str(e)}")
         return {"error": str(e)}
 
-
-
 def process_cleansing(filename, process_list):
     """
     Cleanses the given file based on the specified processes and saves the result as a new file.
@@ -95,14 +94,25 @@ def process_cleansing(filename, process_list):
         if "delete_duplicate_row" in process_list:
             data = data.drop_duplicates()
 
-        # Save cleansed data to a new file
-        cleansed_filename = f"cleansed_{filename}"
-        cleansed_path = os.path.join(file_server_path_file, cleansed_filename)
+        # Generate random string for filename
+        random_id = str(uuid.uuid4())[:8]
+        file_extension = os.path.splitext(filename)[1]
+        cleansed_filename = f"cleansed_{random_id}{file_extension}"
+        
+        # Create the CSV directory path
+        csv_dir = os.path.join(file_server_path_file, 'csv')
+        
+        # Create the directory if it doesn't exist
+        os.makedirs(csv_dir, exist_ok=True)
+        
+        # Create the full path for the cleansed file
+        cleansed_path = os.path.join(csv_dir, cleansed_filename)
+        
+        # Save the file
         data.to_csv(cleansed_path, index=False)
 
         logger.info(f"Cleansing completed. Saved to {cleansed_path}")
 
-        # Return details of the cleansed file
         return {
             "filename": cleansed_filename,
             "size": data.shape[0],
@@ -111,4 +121,3 @@ def process_cleansing(filename, process_list):
     except Exception as e:
         logger.error(f"Error during cleansing process: {str(e)}")
         return {"error": str(e)}
-

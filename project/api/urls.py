@@ -11,7 +11,7 @@ from project.api.view import CreateProject, DeleteProject, ListProject, ProjectD
 
 urlpatterns = [
     # create project endpoint
-    path('project/', CreateProject.as_view(), name="create_project"),
+    path('projects/', CreateProject.as_view(), name="create_project"),
     # get all projects
     path('projects/', ListProject.as_view(), name="list_projects"),
     path('project/<str:project_id>/detail/', ProjectDetailView.as_view(), name="project_detail"),

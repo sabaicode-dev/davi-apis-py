@@ -1,12 +1,25 @@
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from metafile.api.services.data_cleaning import replace_nan_with_none  # type: ignore
+from bson import ObjectId
+import logging
+from metafile.api.service import MetadataService
 from metafile.api.services.file_loader import FileHandler
-from metafile.api.services.metadata_extractor import MetadataExtractor  # type: ignore
-from utils.load_env import FILE_LOCAL_SERVER_PATH
-        
+from utils.file_util import file_server_path_file
+from metafile.api.services.data_cleaning import replace_nan_with_none
+from metafile.api.services.metadata_extractor import MetadataExtractor
 
+
+logger = logging.getLogger(__name__)
+
+def is_valid_object_id(value):
+    """Check if a string is a valid MongoDB ObjectId."""
+    try:
+        ObjectId(value)
+        return True
+    except Exception:
+        return False
+    
 class DatasetViews(APIView):
     def post(self, request, *args, **kwargs):
         try:
@@ -17,7 +30,7 @@ class DatasetViews(APIView):
             file = request.data['file']
 
             # Instantiate the FileHandler to handle file operations
-            file_handler = FileHandler(server_path=FILE_LOCAL_SERVER_PATH)
+            file_handler = FileHandler(server_path=file_server_path_file)
 
             # Upload the file to the local server and get the saved file path
             file_name = file_handler.upload_file_to_server(file=file)
@@ -43,3 +56,22 @@ class DatasetViews(APIView):
             print('error::: ', e)
             # Handle all other exceptions and return the error message
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class MetadataDetailView(APIView):
+    def get(self, request, metadata_id):
+        if not metadata_id:
+            return Response({"error": "Metadata ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ObjectId.is_valid(metadata_id):
+            return Response({"error": "Invalid metadata ID format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        service = MetadataService()
+        metadata = service.get_metadata_by_id(metadata_id)
+        
+        if metadata:
+            # No need for serializer if it's already a dict
+            return Response(metadata, status=status.HTTP_200_OK)
+
+        return Response({"error": "Metadata not found or deleted"}, status=status.HTTP_404_NOT_FOUND)

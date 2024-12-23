@@ -29,7 +29,8 @@ SECRET_KEY = 'django-insecure-r$5@fi1@*@0$jx(%iahz9_@ob@t#3oorkkpss=y3jq9m!m@zt^
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '3.24.110.41']
+
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
     'scrape',
     'file',
     'pagination',
@@ -70,6 +72,7 @@ CORS_ALLOW_HEADERS = [
 
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',                    # Add new
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -79,6 +82,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
+# settings.py
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',  # Your React app's origin
+]
+
+
 
 ROOT_URLCONF = 'myproject.urls'
 
@@ -114,7 +126,6 @@ DATABASES = {
         }
     }
 }
-
 
 
 # DATABASES = {
