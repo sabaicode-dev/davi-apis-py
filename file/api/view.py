@@ -1,11 +1,8 @@
-import mimetypes
 import os
 import re
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from bson import ObjectId
 from file.models import File
@@ -13,16 +10,16 @@ from file.api.serializers import FileResponeSerializer, UpdateFileSerializer, Fi
 from project.models import Project
 import file.api.service as service
 from pagination.pagination import Pagination
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from bson import ObjectId
-from django.db import transaction
 from django.http import JsonResponse
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 import logging
-from django.db import transaction
-from django.db import connection
+from metafile.api.services.metadata_extractor import MetadataExtractor
+import pandas as pd
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -60,14 +57,13 @@ class FileViewAllApiView(APIView):
         serializer = FileResponeSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-
-# Upload a file and associate it with a project
+# File upload
 class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         print("Request Data:", request.data)  # Debugging
 
         # Validate project_id
-        project_id = request.data.get('project_id')
+        project_id = request.data.get('project_id')  # This accesses the form data field 'project_id'
         if not project_id:
             return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -75,7 +71,7 @@ class FileUploadView(APIView):
             return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate uploaded file
-        uploaded_file = request.FILES.get('file')
+        uploaded_file = request.FILES.get('file')  # This accesses the uploaded file
         if not uploaded_file:
             return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -112,7 +108,7 @@ class FileUploadView(APIView):
             "file": os.path.basename(file_path),
             "size": uploaded_file.size,
             "type": file_type,
-            "project": project_id,  # Pass the project ID as a string
+            "project": project_id,
         }
 
         # Serialize the data
@@ -122,17 +118,41 @@ class FileUploadView(APIView):
 
             # Return the saved file, ensuring MongoDB _id is used instead of id
             response_data = FileResponeSerializer(saved_file).data
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            return Response({
+                "success": True,
+                "message": "File uploaded successfully.",
+                "data": response_data
+            }, status=status.HTTP_201_CREATED)
+    
 
-        print("Validation Errors:", serializer.errors)  # Debugging
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class MetadataView(APIView):
+    """
+    View to retrieve metadata for a specific file
+    """
 
+    def get(self, request, file_id, *args, **kwargs):
+        # Retrieve file by file_id
+        file = get_object_or_404(File, pk=file_id)
 
+        # Construct the metadata (You can expand this as needed)
+        metadata = {
+            'filename': file.filename,
+            'file_size': file.size,
+            'file_type': file.type,
+            'upload_date': file.created_at,
+            'uuid': file.uuid,
+            'project_id': file.project_id,
+            'is_original': file.is_original,
+            'is_deleted': file.is_deleted,
+            'is_sample': file.is_sample,
+            'original_file': file.original_file,
+        }
+        return JsonResponse({'success': True, 'metadata': metadata}, status=200)
 
 # View file headers
 class ViewHeaderView(APIView):
     permission_classes = [permissions.AllowAny]
-
+    
     def get(self, request, *args, **kwargs):
         filename = kwargs["filename"]
         result = service.load_datasetHeader(filename=filename)
