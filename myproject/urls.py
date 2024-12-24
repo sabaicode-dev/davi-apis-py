@@ -25,11 +25,14 @@ urlpatterns = [
     # get files updated
     path('api/v1/', include('file.api.urls')),
 
-    path('metafile/', include('metafile.api.urls')),
+    path('api/v1/metafile/', include('metafile.api.urls')),
+    
     # create new project
     path('api/v1/', include('project.api.urls')),
     
     path('api/v1/', include('visualization.api.urls')),
 
     path('api/v1/', include('image_visualize.api.urls')),
+    
+    path('api/v1/', include('aigeneratedes.api.urls')),
 ]
