@@ -6,7 +6,7 @@ After cloning the repository, follow these steps to set up and run the Django RE
 
 ### Prerequisites
 - Ensure you have Python installed on your machine.
-
+====
 ### Installation
 
 1. **Create a virtual environment**:
