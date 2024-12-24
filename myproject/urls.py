@@ -33,4 +33,6 @@ urlpatterns = [
     path('api/v1/', include('visualization.api.urls')),
 
     path('api/v1/', include('image_visualize.api.urls')),
+    
+    path('api/v1/', include('aigeneratedes.api.urls')),
 ]

@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     'project',
     'corsheaders',
     'visualization',
-    'image_visualize'
+    'image_visualize',
+    'aigeneratedes'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
