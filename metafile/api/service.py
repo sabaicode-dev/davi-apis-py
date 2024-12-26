@@ -94,7 +94,6 @@ class MetadataService:
         finally:
             self.close_connection()
 
-    @staticmethod
     def convert_object_ids(metadata):
         """
         Convert ObjectId to string for JSON serialization.

@@ -3,7 +3,7 @@ import utils.file_utils as file_utils
 from rest_framework.exceptions import ValidationError
 import logging
 logger = logging.getLogger(__name__)
-
+import os
 
 class FileHandler:
     ALLOWED_EXTENSIONS_FILE = ['.csv', 'json', 'txt', 'xlsx', 'xls']
@@ -38,7 +38,6 @@ class FileHandler:
             logger.error(f"File upload error: {str(e)}", exc_info=True)
             raise
 
-
     def load_dataset(self, file_name, chunksize=1000):
         extension = file_utils.get_file_extension(file_name)
         file_path = f"{self.server_path}/{extension}/{file_name}"
@@ -58,3 +57,27 @@ class FileHandler:
         except Exception as e:
             print(f"Error loading dataset: {e}")
             raise e
+
+    # def load_dataset(self, file_name, chunksize=1000):
+    #     extension = file_utils.get_file_extension(file_name)
+    #     # Ensure the file path uses the correct server path
+    #     file_path = os.path.join(self.server_path, file_name)  # Correct the path construction
+
+    #     try:
+    #         # Handle CSV files
+    #         if extension == 'csv':
+    #             sep = self.detect_separator(file_path)
+    #             reader = pd.read_csv(file_path, chunksize=chunksize, iterator=True, sep=sep, na_values=['', 'NULL'], keep_default_na=False)
+    #         # Handle JSON files
+    #         elif extension == 'json':
+    #             reader = pd.read_json(file_path, lines=True, chunksize=chunksize)
+    #         # Handle Excel files
+    #         elif extension in ['xls', 'xlsx']:
+    #             reader = pd.read_excel(file_path, chunksize=chunksize, iterator=True)
+    #         else:
+    #             raise ValueError("Unsupported file format")
+
+    #         return reader
+    #     except Exception as e:
+    #         print(f"Error loading dataset: {e}")
+    #         raise e
