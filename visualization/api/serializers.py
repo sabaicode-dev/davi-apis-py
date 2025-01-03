@@ -20,6 +20,7 @@ VISUALIZATION = (
     ('column_chart', 'column_chart'),
     ('bubble_chart', 'bubble_chart'),
     ('radar_chart', 'radar_chart'),
+    ('map_chart', 'map_chart')
 )
 
 class VisualizationSerializer(serializers.Serializer):
@@ -27,7 +28,6 @@ class VisualizationSerializer(serializers.Serializer):
     x_axis = serializers.CharField(max_length=200)
     y_axis = serializers.CharField(max_length=200)
     file_id = serializers.CharField()  # Change file_uuid to file_id
-
 
 
 class FindKPICategorySerializer(serializers.Serializer):
@@ -145,13 +145,29 @@ class BarChartSerializer(serializers.ModelSerializer):
         return value
 
 
+class MapChartSerializer(serializers.Serializer):
+    filename = serializers.CharField(max_length=200, required=True)
+    x_axis = serializers.CharField(required=True)  # Column for geographical locations (e.g., countries)
+    y_axis = serializers.CharField(required=True)  # Column for numerical values
 
+    def validate_y_axis(self, value):
+        # Ensure y_axis is numeric
+        if not value.isnumeric():
+            raise serializers.ValidationError("y_axis should be numeric.")
+        return value
+
+    def validate_x_axis(self, value):
+        # Additional validation for x_axis can be added if necessary (e.g., checking if location data is valid)
+        if not isinstance(value, str):
+            raise serializers.ValidationError("x_axis should be a string representing geographical locations (e.g., countries).")
+        return value
 
 class PerformVisualizationSerializer(serializers.Serializer):
 
     CHART_CHOICES = [
         ('line_chart', LineChartSerializer),
         ('bar_chart', BarChartSerializer),
+        ('map_chart', MapChartSerializer),
     ]
 
     chart_name = serializers.ChoiceField(choices=CHART_CHOICES)
