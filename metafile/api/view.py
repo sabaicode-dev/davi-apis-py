@@ -10,6 +10,8 @@ from metafile.api.services.data_cleaning import replace_nan_with_none
 from metafile.api.services.metadata_extractor import MetadataExtractor
 
 
+
+
 logger = logging.getLogger(__name__)
 
 def is_valid_object_id(value):
@@ -75,3 +77,25 @@ class MetadataDetailView(APIView):
             return Response(metadata, status=status.HTTP_200_OK)
 
         return Response({"error": "Metadata not found or deleted"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UpdateMetadataDescriptionView(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = request.data
+            metadata_id = data.get("metadata_id")
+            new_description = data.get("description")
+
+            if not metadata_id or not new_description:
+                return Response({"error": "Metadata ID and description are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            service = MetadataService()
+            updated = service.update_metadata_description(metadata_id, new_description)
+
+            if updated:
+                return Response({"message": "Metadata description updated successfully"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Metadata not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
