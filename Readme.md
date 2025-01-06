@@ -17,6 +17,8 @@ After cloning the repository, follow these steps to set up and run the Django RE
 
    pip install -r requirements.txt
 
+   python manage.py startapp my_newapp
+
    python manage.py migrate
 
    python manage.py runserver

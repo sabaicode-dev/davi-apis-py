@@ -54,7 +54,11 @@ INSTALLED_APPS = [
     'visualization',
     'image_visualize',
     'aigeneratedes',
-    'drf_yasg',
+    'readData_MongoDB',
+    'loadMySQL',
+    'loadSQLServer',
+    'loadPostgresSQL',
+    'loadMariadb',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -91,7 +95,6 @@ CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',  # Your React app's origin
 ]
-
 
 
 ROOT_URLCONF = 'myproject.urls'
