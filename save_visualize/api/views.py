@@ -8,14 +8,19 @@ class VisualizationListCreateView(APIView):
     def post(self, request):
         if request.content_type != "application/json":
             return Response({"error": "Invalid content type, must be application/json"}, status=400)
-        
+
         serializer = VisualizationSerializer(data=request.data)
         if serializer.is_valid():
             visualization = serializer.save()
-            return Response(VisualizationSerializer(visualization).data, status=status.HTTP_201_CREATED)
-        
-        print("Errors in serializer:", serializer.errors)  # Log serializer errors
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        visualizations = Visualization.objects.prefetch_related('charts').all()
+        serializer = VisualizationSerializer(visualizations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class VisualizationDetailView(APIView):
     def get(self, request, pk):
@@ -32,7 +37,7 @@ class VisualizationDetailView(APIView):
             serializer = VisualizationSerializer(visualization, data=request.data)
             if serializer.is_valid():
                 visualization = serializer.save()
-                return Response(VisualizationSerializer(visualization).data)
+                return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Visualization.DoesNotExist:
             return Response({"error": "Visualization not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -45,6 +50,7 @@ class VisualizationDetailView(APIView):
         except Visualization.DoesNotExist:
             return Response({"error": "Visualization not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class ChartCreateView(APIView):
     def post(self, request, visualization_id):
         try:
@@ -55,5 +61,5 @@ class ChartCreateView(APIView):
         serializer = ChartSerializer(data=request.data)
         if serializer.is_valid():
             chart = serializer.save(visualization=visualization)
-            return Response(ChartSerializer(chart).data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
