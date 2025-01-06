@@ -12,15 +12,11 @@ class VisualizationListCreateView(APIView):
         serializer = VisualizationSerializer(data=request.data)
         if serializer.is_valid():
             visualization = serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response_serializer = VisualizationSerializer(visualization)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def get(self, request):
-        visualizations = Visualization.objects.prefetch_related('charts').all()
-        serializer = VisualizationSerializer(visualizations, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
 
 class VisualizationDetailView(APIView):
     def get(self, request, pk):

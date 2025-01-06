@@ -47,17 +47,30 @@ class ScraperDataByUrlView(APIView):
 class ConfirmDataSetView(APIView):
     def post(self, request, *args, **kwargs):
         project_id = kwargs.get('project_id')
+
+        # Ensure project ID is provided
+        if not project_id:
+            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = ConfirmDataSetSerializer(data=request.data)
 
         if serializer.is_valid():
-            confirmed = save_file(serializer.validated_data.get("confirmed_filename"), project_id)
-            rejected = remove_file(serializer.validated_data.get("rejected_filename"))
+            # Save confirmed files
+            confirmed = save_file(serializer.validated_data.get("confirmed_filename", []), project_id)
+            
+            # If project does not exist, return error
+            if "message" in confirmed and "does not exist" in confirmed["message"]:
+                return Response({"error": confirmed["message"]}, status=status.HTTP_404_NOT_FOUND)
 
+            # Remove rejected files
+            rejected = remove_file(serializer.validated_data.get("rejected_filename", []))
+
+            # Return success response
             return Response({
                 "code": 200,
+                "project_id": project_id,
                 "confirmed_message": confirmed,
                 "rejected_message": rejected,
-                "project_id": project_id
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

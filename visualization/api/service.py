@@ -37,7 +37,7 @@ valid_chart_types = {
     'bar_chart': (True, True),      # Requires both labels and numbers.
     'pie_chart': (False, True),     # Requires only numbers.
     'scatter_plot': (True, True),   # Requires both labels and numbers.
-    'heatmap': (True, True),       # Requires both labels and numbers.
+    'heatmap': (True, True),        # Requires both labels and numbers.
     'area_chart': (True, True),     # Requires both labels and numbers.
     'doughnut_chart': (False, True),# Requires only numbers.
     'bubble_chart': (True, True),   # Requires both labels and numbers.

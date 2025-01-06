@@ -1,14 +1,15 @@
 from rest_framework import serializers
-from save_visualize.models import Visualization, Chart
+from bson import ObjectId
+from save_visualize.models import Chart, Visualization
 
 class ChartSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+    id = serializers.CharField(read_only=True)  # Ensure the `id` is included and read-only
     chartType = serializers.CharField(source="chart_type")
     chartImage = serializers.URLField(source="chart_image")
 
     class Meta:
         model = Chart
-        fields = ['id', 'chartType', 'chartImage', 'description', 'selected_columns', 'created_at']
+        fields = ['id', 'chartType', 'chartImage', 'description', 'selectedColumns', 'created_at']
 
 
 class VisualizationSerializer(serializers.ModelSerializer):
@@ -21,22 +22,14 @@ class VisualizationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         charts_data = validated_data.pop('charts', [])
+        
+        # Create the Visualization instance
         visualization = Visualization.objects.create(**validated_data)
 
-        # Create and link charts
+        # Create and save related charts with unique IDs
         for chart_data in charts_data:
+            chart_data['id'] = str(ObjectId())  # Generate a MongoDB-compatible ObjectId
             Chart.objects.create(visualization=visualization, **chart_data)
 
+        # Return the visualization instance
         return visualization
-
-    def update(self, instance, validated_data):
-        charts_data = validated_data.pop('charts', [])
-        instance.name = validated_data.get('name', instance.name)
-        instance.save()
-
-        # Replace existing charts
-        instance.charts.all().delete()
-        for chart_data in charts_data:
-            Chart.objects.create(visualization=instance, **chart_data)
-
-        return instance
