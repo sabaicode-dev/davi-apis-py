@@ -2,7 +2,7 @@ from bson import ObjectId
 from djongo import models
 
 class Chart(models.Model):
-    id = models.ObjectIdField(primary_key=True, default=ObjectId)  # Auto-generate ObjectId
+    id = models.ObjectIdField(primary_key=True, default=ObjectId, db_column='_id')
     visualization = models.ForeignKey(
         'Visualization',
         on_delete=models.CASCADE,
@@ -14,12 +14,9 @@ class Chart(models.Model):
     selectedColumns = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.chart_type} for {self.visualization.name}"
-
 
 class Visualization(models.Model):
-    id = models.ObjectIdField(primary_key=True, default=ObjectId)  # Auto-generate ObjectId
+    id = models.ObjectIdField(primary_key=True, default=ObjectId, db_column='_id')
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 

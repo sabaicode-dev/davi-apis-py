@@ -18,17 +18,26 @@ class VisualizationListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
-        visualizations = Visualization.objects.all()
+        # Fetch visualizations and their related charts
+        visualizations = Visualization.objects.prefetch_related('charts').all()
         serializer = VisualizationSerializer(visualizations, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     
 class VisualizationDetailView(APIView):
-    def get(self, request, pk):
+    def get(self, request):
+        # Fetch visualizations and their related charts
+        visualizations = Visualization.objects.prefetch_related('charts').all()
+        serializer = VisualizationSerializer(visualizations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VisualizationDeleteView(APIView):
+    def delete(self, request, pk):
         try:
-            visualization = Visualization.objects.prefetch_related('charts').get(pk=pk)
-            serializer = VisualizationSerializer(visualization)
-            return Response(serializer.data)
+            visualization = Visualization.objects.get(pk=pk)
+            visualization.delete()
+            return Response({"message": "Visualization deleted successfully"}, status=status.HTTP_200_OK)
         except Visualization.DoesNotExist:
             return Response({"error": "Visualization not found"}, status=status.HTTP_404_NOT_FOUND)
 
