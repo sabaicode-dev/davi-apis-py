@@ -1,12 +1,11 @@
-from django.db import models
-from django.contrib.auth.models import User  # Replace with your custom user model if applicable
+from bson import ObjectId
+from djongo import models
 
 class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    title = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    id = models.ObjectIdField(primary_key=True, default=ObjectId, db_column='_id')
+    file_name = models.CharField(max_length=255)  # Name of the file or event
+    is_read = models.BooleanField(default=False)  # Indicates if the notification is read
+    created_at = models.DateTimeField(auto_now_add=True)  # Timestamp
 
     def __str__(self):
-        return f"{self.title} - {self.user.username}"
+        return self.file_name
