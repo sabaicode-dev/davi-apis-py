@@ -1,12 +1,6 @@
 import os
 import uuid
 from dotenv import load_dotenv
-from rest_framework.response import Response
-from rest_framework import status
-
-import nbformat
-from nbconvert import HTMLExporter
-
 
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
