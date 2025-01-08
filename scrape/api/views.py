@@ -47,20 +47,76 @@ class ScraperDataByUrlView(APIView):
 class ConfirmDataSetView(APIView):
     def post(self, request, *args, **kwargs):
         project_id = kwargs.get('project_id')
+
+        # Ensure project ID is provided
+        if not project_id:
+            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ObjectId.is_valid(project_id):
+            return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Parse and validate the request data
         serializer = ConfirmDataSetSerializer(data=request.data)
-
         if serializer.is_valid():
-            confirmed = save_file(serializer.validated_data.get("confirmed_filename"), project_id)
-            rejected = remove_file(serializer.validated_data.get("rejected_filename"))
+            confirmed_filenames = serializer.validated_data.get("confirmed_filename", [])
+            rejected_filenames = serializer.validated_data.get("rejected_filename", [])
 
+            # Process confirmed files
+            saved_files = []
+            for filename in confirmed_filenames:
+                base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
+                file_path = os.path.join(base_path, filename)
+
+                if not os.path.exists(file_path):
+                    return Response({
+                        "error": f"File '{filename}' does not exist on the server."
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # Determine file type
+                file_extension = os.path.splitext(filename)[1].lower()
+                file_type = {
+                    '.csv': 'csv',
+                    '.txt': 'text',
+                    '.jpg': 'image',
+                    '.jpeg': 'image',
+                    '.png': 'image',
+                    '.pdf': 'pdf'
+                }.get(file_extension, 'unknown')
+
+                # Prepare data for the serializer
+                data = {
+                    "filename": filename,
+                    "file": os.path.basename(file_path),
+                    "size": os.path.getsize(file_path),
+                    "type": file_type,
+                    "project": project_id,
+                }
+
+                # Serialize and save file to database
+                file_serializer = FileResponeSerializer(data=data)
+                if file_serializer.is_valid():
+                    saved_file = file_serializer.save()
+                    saved_files.append(FileResponeSerializer(saved_file).data)
+                else:
+                    return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Remove rejected files
+            base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
+            for filename in rejected_filenames:
+                file_path = os.path.join(base_path, filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+
+            # Respond with the result
             return Response({
-                "code": 200,
-                "confirmed_message": confirmed,
-                "rejected_message": rejected,
-                "project_id": project_id
+                "success": True,
+                "message": "Files confirmed successfully.",
+                "confirmed_files": saved_files,
+                "rejected_files": rejected_filenames
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class ViewDataSetByFilenameView(APIView):
