@@ -18,7 +18,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from the .env.stage file
-dotenv_path = os.path.join(BASE_DIR, '.env.stage')
+dotenv_path = os.path.join(BASE_DIR, '.env.development')
 load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
@@ -32,10 +32,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-
 # Application definition
 
 INSTALLED_APPS = [
+    'django_extensions',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,21 +43,55 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
     'scrape',
     'file',
     'pagination',
-    'cleansing'
+    'cleansing',
+    'metafile',
+    'project',
+    'corsheaders',
+    'visualization',
+    'image_visualize',
+    'aigeneratedes'
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'PATCH',
+]
+
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+]
+
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',                    # Add new
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
+# settings.py
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',  # Your React app's origin
+]
+
+
 
 ROOT_URLCONF = 'myproject.urls'
 
@@ -93,7 +127,6 @@ DATABASES = {
         }
     }
 }
-
 
 
 # DATABASES = {
@@ -135,12 +168,15 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+# file
+MEDIA_URL = '/media/'
+MEDIA_ROOT = 'D://SabaiCode//Project//davi-apis//server//images//'
+
+STATIC_URL = '/static/'
+STATIC_ROOT = 'D://SabaiCode//Project//davi-apis//server//static//'
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
