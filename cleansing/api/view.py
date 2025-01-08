@@ -5,11 +5,11 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from cleansing.api.service import data_cleansing, process_cleansing
-from metafile.api.services.file_loader import FileHandler
-from utils.file_util import file_server_path_file
-from metafile.api.services.data_cleaning import replace_nan_with_none
 from metafile.api.services.metadata_extractor import MetadataExtractor
+from utils.file_util import file_server_path_file
+from metafile.api.services.file_loader import FileHandler
 from metafile.api.service import MetadataService
+from metafile.api.services.data_cleaning import replace_nan_with_none
 from datetime import datetime
 import uuid
 import logging
@@ -145,44 +145,6 @@ class FileUploadFindInaccurateDataView(APIView):
             {"project_id": project_id, "is_deleted": False},
             sort=[("created_at", -1)],
         )
-    
-class DatasetViews(APIView):
-    def post(self, request, *args, **kwargs):
-        try:
-            # Ensure the request contains a file
-            if 'file' not in request.data:
-                return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            file = request.data['file']
-
-            # Instantiate the FileHandler to handle file operations
-            file_handler = FileHandler(server_path=file_server_path_file)
-
-            # Upload the file to the local server and get the saved file path
-            file_name = file_handler.upload_file_to_server(file=file)
-
-            # Load the dataset (assuming it's a CSV file)
-            data = file_handler.load_dataset(file_name)
-
-            # Extract metadata from the data
-            extractor = MetadataExtractor(df_iterator=data)
-            metadata = extractor.extract()
-
-            # Replace NaN values with None
-            cleaned_metadata = replace_nan_with_none(metadata)
-
-            # Return the cleaned metadata as the response
-            return Response(cleaned_metadata, status=status.HTTP_201_CREATED)
-
-        except KeyError:
-            # Handle case where 'file' is not part of the request
-            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            print('error::: ', e)
-            # Handle all other exceptions and return the error message
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class ProcessCleaningFile(APIView):
     def post(self, request, *args, **kwargs):
@@ -221,15 +183,27 @@ class ProcessCleaningFile(APIView):
                         "original_file": str(file.get("_id")),
                         "created_at": datetime.utcnow()
                     }
-                    # Insert cleansed file into MongoDB
-                    inserted_id = db.files.insert_one(cleansed_file_data).inserted_id
-                    cleansed_file_data["_id"] = str(inserted_id)
 
-                    response_data.update(cleansed_file_data)
-                    response_data["cleansing_message"] = cleansing_result.get("message", "Cleansing completed")
+                    # Check if metadata for this file_id already exists
+                    existing_metadata = db.metadata.find_one({"file_id": file["_id"]})
+                    if existing_metadata:
+                        # Update existing metadata if it exists
+                        db.metadata.update_one(
+                            {"file_id": file["_id"]},
+                            {"$set": {"metadata": cleansed_file_data, "updated_at": datetime.utcnow()}}
+                        )
+                        response_data["metadata_updated"] = True
+                    else:
+                        # Insert cleansed file into MongoDB if no metadata exists
+                        inserted_id = db.files.insert_one(cleansed_file_data).inserted_id
+                        cleansed_file_data["_id"] = str(inserted_id)
+
+                        response_data.update(cleansed_file_data)
+                        response_data["cleansing_message"] = cleansing_result.get("message", "Cleansing completed")
+
             except Exception as cleansing_error:
                 response_data["cleansing_error"] = str(cleansing_error)
-
+    
             # Correct the file path when loading the dataset
             try:
                 if "cleansing_error" not in response_data:

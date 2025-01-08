@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from file.models import File
 
+# Serializer  for metadata
+from metafile.api.models import Metadata
+from bson import ObjectId
+
 PROCESS_CHOICES = (
     ('delete_missing_row', 'Delete Missing Row'),
     ('delete_duplicate_row', 'Delete Duplicate Row'),
@@ -37,9 +41,6 @@ class ProcessFileCleansingSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"The file '{value}' does not exist.")
         return value
 
-# Serializer  for metadata
-from metafile.api.models import Metadata
-from bson import ObjectId
 
 class ObjectIdField(serializers.Field):
     def to_representation(self, value):
