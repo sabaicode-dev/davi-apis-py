@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'loadSQLServer',
     'loadPostgresSQL',
     'loadMariadb',
+    'save_visualize',
+    'notification_app',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

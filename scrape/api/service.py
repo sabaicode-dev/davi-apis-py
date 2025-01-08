@@ -219,24 +219,33 @@ def remove_file(list_of_files):
 
 def load_dataset(filename, size=0):
     file_path = os.path.join(file_server_path_file, filename)
+    file_path = os.path.join(file_server_path_file, filename)
     type_file = get_file_extension(filename).replace('.', "").strip()
     data = None
 
     try:
+        # Detect encoding for reading the file
         # Detect encoding for reading the file
         with open(file_path, 'rb') as raw_data:
             result = chardet.detect(raw_data.read(1000))
         encoding = result['encoding']
 
         # Read the file based on type
+        # Read the file based on type
         if type_file == 'csv':
+            data = pd.read_csv(file_path, encoding=encoding, on_bad_lines="skip")
             data = pd.read_csv(file_path, encoding=encoding, on_bad_lines="skip")
         elif type_file == 'json':
             data = pd.read_json(file_path, encoding=encoding)
+            data = pd.read_json(file_path, encoding=encoding)
         elif type_file == 'txt':
+            data = pd.read_csv(file_path, encoding=encoding, delimiter=detect_delimiter(file_path))
             data = pd.read_csv(file_path, encoding=encoding, delimiter=detect_delimiter(file_path))
         elif type_file == 'xlsx':
             data = pd.read_excel(file_path)
+    except Exception as e:
+        print(f"Error loading dataset: {e}")
+        return None
     except Exception as e:
         print(f"Error loading dataset: {e}")
         return None
@@ -250,10 +259,15 @@ def load_dataset(filename, size=0):
                 "total": len(data),
                 "header": data.columns.tolist(),
                 "data": data.head(size).to_dict(orient="records"),
+                "header": data.columns.tolist(),
+                "data": data.head(size).to_dict(orient="records"),
             }
         return {
             "total": len(data),
             "header": data.columns.tolist(),
             "data": data.to_dict(orient="records"),
+            "header": data.columns.tolist(),
+            "data": data.to_dict(orient="records"),
         }
     return None
+

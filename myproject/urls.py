@@ -49,8 +49,14 @@ urlpatterns = [
     path('metafile/', include('metafile.api.urls')),
     path('api/v1/', include('project.api.urls')),
     path('api/v1/', include('visualization.api.urls')),
+
     path('api/v1/', include('image_visualize.api.urls')),
+
     path('api/v1/', include('aigeneratedes.api.urls')),
+
+    path('api/v1/', include('save_visualize.api.urls')),
+
+    path('api/v1/notifications/', include('notification_app.api.urls')),
     path('readData_MongoDB/api/v1/', include('readData_MongoDB.api.urls')),
     path('load_MySQL/api/v1/', include('loadMySQL.api.urls')),
     path('load_SQLServer/api/v1/', include('loadSQLServer.api.urls')),
