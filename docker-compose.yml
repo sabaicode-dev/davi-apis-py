@@ -1,29 +1,41 @@
-version: '3'
+version: '3.9'
 
 services:
   web:
-    build:
+    build: 
       context: .
       dockerfile: Dockerfile
-    command: bash -c "mkdir -p /app/server/files && python manage.py runserver 0.0.0.0:8000"
+    container_name: davi-apis-web
     volumes:
       - .:/app
-      - /home/ubuntu/app/server/files:/app/server/files
+      - ./server/files:/app/server/files
     ports:
       - "8000:8000"
     env_file:
-      - .env.development
+      - .env.stage
     depends_on:
       - db
-    user: "${UID}:${GID}"
+    networks:
+      - davi-network
+    restart: unless-stopped
 
   db:
     image: mongo:latest
-    restart: always
+    container_name: davi-apis-db
     volumes:
       - mongo_data:/data/db
     ports:
-      - "27017:27017"
+      - "27018:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=daviapisdb
+    networks:
+      - davi-network
+    restart: unless-stopped
 
 volumes:
   mongo_data:
+    driver: local
+
+networks:
+  davi-network:
+    driver: bridge
