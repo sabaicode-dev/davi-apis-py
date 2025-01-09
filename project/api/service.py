@@ -11,40 +11,37 @@ logger = logging.getLogger(__name__)
 class ProjectService:
     @staticmethod
     def create_project(data):
-        """
-        Create a new project instance
-        """
         try:
-            # Ensure required fields are present in the data
+            user_cognito_id = data.get("user_cognito_id")
+            if not user_cognito_id:
+                raise ValueError("User ID is required.")
+            
             project_name = data.get("project_name")
             if not project_name:
                 raise ValueError("Project name is required.")
-    
-            project_description = data.get("project_description", "")  # Default to empty string if not provided
-            deleted_at = data.get("deleted_at", None)
-    
+
+            project_description = data.get("project_description", "")
+
             # Create the project instance
             project = Project(
+                user_cognito_id=user_cognito_id,  # Ensure the user ID is stored
                 project_name=project_name,
-                project_description=project_description,
-                deleted_at=deleted_at
+                project_description=project_description
             )
-            
-            # Save the project and catch potential database errors
-            try:
-                project.save()
-                logger.info(f"Project created successfully: {project.project_name}")
-                return project
-            except Exception as db_error:
-                logger.error(f"Database error while creating project: {str(db_error)}")
-                raise Exception(f"Database error: {str(db_error)}")
-                
+
+            # Save to the database
+            project.save()
+            return project
         except ValueError as ve:
             logger.error(f"Validation error: {str(ve)}")
             raise ValueError(str(ve))
         except Exception as e:
             logger.exception("Error creating project")
             raise Exception(f"Error creating project: {str(e)}")
+
+
+
+
 
     @staticmethod
     def get_project_by_id(project_id):

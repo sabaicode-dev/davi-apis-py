@@ -1,6 +1,7 @@
 from djongo import models
 
 class Project(models.Model):
+    user_cognito_id = models.CharField(max_length=255)  # Reference cognitoUserId
     _id = models.ObjectIdField(primary_key=True)
     project_name = models.CharField(max_length=100, null=False)
     project_description = models.CharField(max_length=200, null=True)
@@ -12,3 +13,4 @@ class Project(models.Model):
         verbose_name = 'project'
         verbose_name_plural = 'projects'
         db_table = "projects"
+
