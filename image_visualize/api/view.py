@@ -3,7 +3,7 @@ import os
 
 def serve_image(request, filename):
     # Set the path where images are stored
-    image_path = os.path.join('D://just-test//davi-apis-py//server//images//', filename)
+    image_path = os.path.join('C://Users//user//Desktop//SabaiCode//Project//davi-apis-py//server//images//', filename)
     
     # Check if the file exists
     if os.path.exists(image_path):
