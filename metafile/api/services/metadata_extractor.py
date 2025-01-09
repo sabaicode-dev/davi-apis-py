@@ -5,6 +5,8 @@ from collections import Counter
 from utils.file_util import is_boolean_column
 
 from metafile.api.services import data_cleaning
+from metafile.api.models import Metadata
+
 
 import logging
 
@@ -651,3 +653,40 @@ class MetadataExtractor:
                 'counts': []
             }
         }
+
+
+def update_description(metadata_key, new_description):
+    """
+    Update the description of a column in the metadata based on its key.
+
+    Args:
+        metadata_key (str): The key of the column whose description needs to be updated.
+        new_description (str): The new description to set.
+
+    Returns:
+        dict: Result message indicating success or failure.
+    """
+    try:
+        # Find the metadata instance containing the column
+        metadata_instance = Metadata.objects.filter(metadata__contains=[{"key": metadata_key}]).first()
+
+        if not metadata_instance:
+            return {"error": "Metadata not found"}
+
+        # Update the description field for the matching key
+        updated = False
+        for column in metadata_instance.metadata:
+            if column["key"] == metadata_key:
+                column["description"] = new_description
+                updated = True
+                break
+
+        if not updated:
+            return {"error": "Key not found in metadata"}
+
+        # Save the updated metadata instance
+        metadata_instance.save()
+        return {"message": "Description updated successfully"}
+
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}

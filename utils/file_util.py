@@ -1,6 +1,7 @@
 import os
 import uuid
 from dotenv import load_dotenv
+import numpy as np
 
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
@@ -74,3 +75,18 @@ def is_boolean_column(series):
         
     except Exception:
         return False
+
+def replace_nan_with_none(data):
+    """
+    Recursively replaces NaN values with None.
+    """
+    import numpy as np
+
+    if isinstance(data, dict):
+        return {k: replace_nan_with_none(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [replace_nan_with_none(item) for item in data]
+    elif isinstance(data, float) and np.isnan(data):
+        return None
+    else:
+        return data
