@@ -19,6 +19,7 @@ import pandas as pd
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+import uuid
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -57,97 +58,152 @@ class FileViewAllApiView(APIView):
         serializer = FileResponeSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-# File upload
+from utils.file_util import file_server_path_file
+from metafile.api.services.file_loader import FileHandler
+from metafile.api.service import MetadataService
+from metafile.api.services.data_cleaning import replace_nan_with_none
+
 class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
-        print("Request Data:", request.data)  # Debugging
+        try:
+            # Debugging: Log request data
+            print("Request Data:", request.data)
 
-        # Validate project_id
-        project_id = request.data.get('project_id')  # This accesses the form data field 'project_id'
-        if not project_id:
-            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            # Validate project_id
+            project_id = request.data.get('project_id')
+            if not project_id:
+                return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not ObjectId.is_valid(project_id):
-            return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
+            if not ObjectId.is_valid(project_id):
+                return Response({"error": "Invalid Project ID format."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate uploaded file
-        uploaded_file = request.FILES.get('file')  # This accesses the uploaded file
-        if not uploaded_file:
-            return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
+            # Validate uploaded file
+            uploaded_file = request.FILES.get('file')
+            if not uploaded_file:
+                return Response({"error": "No file provided in the request."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Save the file to the specified directory
-        base_path = os.getenv("FILE_SERVER_PATH_FILE", default="./uploaded_files")
-        if not os.path.exists(base_path):
-            os.makedirs(base_path)  # Create the directory if it doesn't exist
+            # Print the filename
+            print("Filename received:::", uploaded_file.name)
 
-        # Save the file to disk
-        file_path = os.path.join(base_path, uploaded_file.name)
-        with open(file_path, 'wb') as destination:
-            for chunk in uploaded_file.chunks():
-                destination.write(chunk)
+            # Use the original filename, no need to add UUID or change the filename
+            file_path = os.path.join(file_server_path_file, uploaded_file.name)
 
-        # Determine file type based on the file extension
-        file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-        file_type = None
-        if file_extension == '.csv':
-            file_type = 'csv'
-        elif file_extension == '.txt':
-            file_type = 'text'
-        elif file_extension in ['.jpg', '.jpeg']:
-            file_type = 'image'
-        elif file_extension == '.png':
-            file_type = 'image'
-        elif file_extension == '.pdf':
-            file_type = 'pdf'
-        else:
-            file_type = 'unknown'
+            print("File path:::", file_path)
+            with open(file_path, 'wb') as destination:
+                for chunk in uploaded_file.chunks():
+                    destination.write(chunk)
 
-        # Prepare data for the serializer
-        data = {
-            "filename": uploaded_file.name,
-            "file": os.path.basename(file_path),
-            "size": uploaded_file.size,
-            "type": file_type,
-            "project": project_id,
+            # Determine file type
+            file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+            file_type = self.get_file_type(file_extension)
+
+            # Prepare data for the serializer
+            data = {
+                "filename": uploaded_file.name,
+                "file": os.path.basename(file_path),  # Store just the filename, not the full path
+                "size": uploaded_file.size,
+                "type": file_type,
+                "project": project_id,
+            }
+
+            # Serialize and save file data
+            serializer = FileResponeSerializer(data=data)
+            if serializer.is_valid():
+                saved_file = serializer.save()
+                response_data = FileResponeSerializer(saved_file).data
+
+                # Handle metadata generation and storage
+                metadata_result = self.generate_and_store_metadata(
+                    file_path=file_path,
+                    file_id=response_data["_id"],
+                    project_id=project_id
+                )
+                response_data.update(metadata_result)
+
+                return Response({
+                    "success": True,
+                    "message": "File uploaded successfully.",
+                    "data": response_data
+                }, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+    def generate_and_store_metadata(self, file_path, file_id, project_id):
+        """
+        Generate metadata for the file and store it in the database.
+        """
+        try:
+            # Ensure the file path is valid
+            if not os.path.isfile(file_path):
+                raise FileNotFoundError(f"File not found: {file_path}")
+
+            print(f"Processing file at path: {file_path}")
+
+            # Load the dataset directly from the file path
+            if file_path.endswith('.csv'):
+                data = pd.read_csv(file_path, chunksize=1000)  # Use chunksize if needed
+            elif file_path.endswith('.xlsx'):
+                data = pd.read_excel(file_path, sheet_name=None)  # Load all sheets if applicable
+            elif file_path.endswith('.json'):
+                data = pd.read_json(file_path, lines=True)  # Handle line-delimited JSON
+            elif file_path.endswith('.txt'):
+                # Customize handling for .txt files if required
+                data = pd.read_csv(file_path, delimiter='\t', chunksize=1000)
+            else:
+                raise ValueError(f"Unsupported file format: {file_path}")
+
+            print("Dataset loaded successfully for metadata extraction.")
+
+            # Pass the dataset to the MetadataExtractor
+            extractor = MetadataExtractor(df_iterator=data)
+            metadata = extractor.extract()
+            # print("Extracted metadata:", metadata)
+
+            # Clean metadata (replace NaN values with None)
+            cleaned_metadata = replace_nan_with_none(metadata)
+
+            # Store metadata
+            metadata_service = MetadataService()
+            metadata_stored = metadata_service.store_metadata(
+                file_id=file_id,
+                project_id=project_id,
+                metadata=cleaned_metadata
+            )
+            print("Metadata stored successfully with ID:", metadata_stored)
+
+            return {
+                "metadata_stored": bool(metadata_stored),
+                "metadata_id": metadata_stored
+            }
+
+        except FileNotFoundError as fnf_error:
+            print(f"File not found: {fnf_error}")
+            return {"metadata_error": str(fnf_error)}
+
+        except ValueError as value_error:
+            print(f"Value error: {value_error}")
+            return {"metadata_error": str(value_error)}
+
+        except Exception as e:
+            print("Error during metadata generation:", str(e))
+            return {"metadata_error": str(e)}
+
+    @staticmethod
+    def get_file_type(file_extension):
+        file_types = {
+            '.csv': 'csv',
+            '.txt': 'text',
+            '.jpg': 'image',
+            '.jpeg': 'image',
+            '.png': 'image',
+            '.pdf': 'pdf'
         }
-
-        # Serialize the data
-        serializer = FileResponeSerializer(data=data)
-        if serializer.is_valid():
-            saved_file = serializer.save()
-
-            # Return the saved file, ensuring MongoDB _id is used instead of id
-            response_data = FileResponeSerializer(saved_file).data
-            return Response({
-                "success": True,
-                "message": "File uploaded successfully.",
-                "data": response_data
-            }, status=status.HTTP_201_CREATED)
-    
-
-class MetadataView(APIView):
-    """
-    View to retrieve metadata for a specific file
-    """
-
-    def get(self, request, file_id, *args, **kwargs):
-        # Retrieve file by file_id
-        file = get_object_or_404(File, pk=file_id)
-
-        # Construct the metadata (You can expand this as needed)
-        metadata = {
-            'filename': file.filename,
-            'file_size': file.size,
-            'file_type': file.type,
-            'upload_date': file.created_at,
-            'uuid': file.uuid,
-            'project_id': file.project_id,
-            'is_original': file.is_original,
-            'is_deleted': file.is_deleted,
-            'is_sample': file.is_sample,
-            'original_file': file.original_file,
-        }
-        return JsonResponse({'success': True, 'metadata': metadata}, status=200)
+        return file_types.get(file_extension, 'unknown')
 
 # View file headers
 class ViewHeaderView(APIView):
@@ -157,7 +213,6 @@ class ViewHeaderView(APIView):
         filename = kwargs["filename"]
         result = service.load_datasetHeader(filename=filename)
         return Response(result)
-
 
 # Search files by user
 class FindFileByUserView(APIView):
@@ -206,7 +261,6 @@ class DownloadFileAPIview(APIView):
 
         # If no files are found or something went wrong
         return Response({"message": "File not found or multiple files found."}, status=status.HTTP_404_NOT_FOUND)
-
 
 # View file details
 class FileDetailsViews(APIView):
@@ -333,8 +387,6 @@ class FileDetailsViews(APIView):
         })
 
         return Response(paginated_response)
-
-
 
 
 # Update file details
