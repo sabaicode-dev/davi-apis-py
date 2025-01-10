@@ -1,10 +1,11 @@
 # visualization/api/service.py
+import importlib
+from venv import logger
 from dotenv import load_dotenv
 from django.conf import settings
 import seaborn as sns
 import csv
 import matplotlib.pyplot as plt
-import os
 import pandas as pd
 import numpy as np
 import chardet
@@ -12,7 +13,13 @@ import matplotlib
 import uuid
 import re
 import plotly.graph_objects as go
-
+import plotly.express as px
+import os
+import uuid
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
+import matplotlib.colors as mcolors
 matplotlib.use("Agg")
 
 dotenv_path_dev = '.env'
@@ -30,12 +37,13 @@ valid_chart_types = {
     'bar_chart': (True, True),      # Requires both labels and numbers.
     'pie_chart': (False, True),     # Requires only numbers.
     'scatter_plot': (True, True),   # Requires both labels and numbers.
-    'heatmap': (True, True),       # Requires both labels and numbers.
+    'heatmap': (True, True),        # Requires both labels and numbers.
     'area_chart': (True, True),     # Requires both labels and numbers.
     'doughnut_chart': (False, True),# Requires only numbers.
     'bubble_chart': (True, True),   # Requires both labels and numbers.
     'radar_chart': (True, True),    # Requires both labels and numbers.
     'column_chart': (True, True),   # Requires both labels and numbers.
+    'map_chart': (True, True) # Requires both labels and numbers.
 }
 
 def get_file_extension(filename):
@@ -151,44 +159,52 @@ def generateBASEURL(str_url):
     return file_base_url+str_url+"/"
     
 
-def perform_visualize(filename, chart_name="bar_chart",x_axis=[None],y_axis=None):
-
+def perform_visualize(filename, chart_name="bar_chart", x_axis=[None], y_axis=None):
+    # Ensure the filename is correct
     data = load_dataset(filename)
 
+    # Log the incoming request data for debugging purposes
+    logger.info(f"Received data: {data.head()}")
+
+    # Based on the chart name, call the respective function
     if chart_name == "line_chart":
-        return generate_line_chart(data,x_axis,y_axis)
+        return generate_line_chart(data, x_axis, y_axis)
 
     elif chart_name == "bar_chart":
-        return generate_bar_chart(data,x_axis,y_axis)
+        return generate_bar_chart(data, x_axis, y_axis)
     
     elif chart_name == "pie_chart":
-        return generate_pie_chart(data,x_axis)
+        return generate_pie_chart(data, x_axis)
     
     elif chart_name == "scatter_plot":
-        return generate_scatter_plot(data,x_axis,y_axis)
+        return generate_scatter_plot(data, x_axis, y_axis)
     
     elif chart_name == "histogram":
-        return generate_histogram(data,x_axis,y_axis)
+        return generate_histogram(data, x_axis, y_axis)
 
     elif chart_name == "area_chart":
-        return generate_area_chart(data,x_axis,y_axis)
+        return generate_area_chart(data, x_axis, y_axis)
     
     elif chart_name == "bubble_chart":
-        return generate_bubble_chart(data,x_axis,y_axis)
+        return generate_bubble_chart(data, x_axis, y_axis)
 
     elif chart_name == "column_chart":
-        return generate_column_chart(data,x_axis,y_axis)
+        return generate_column_chart(data, x_axis, y_axis)
+    
+    elif chart_name == "map_chart":
+        return generate_map_chart(data, x_axis, y_axis)
     
     elif chart_name == "donut_chart":
-        return generate_donut_chart(data,x_axis)
+        return generate_donut_chart(data, x_axis)
     
     elif chart_name == "heatmap":
-        return generate_heatmap_chart(data,x_axis,y_axis)
+        return generate_heatmap_chart(data, x_axis, y_axis)
     
     elif chart_name == "waterfall":
-        return generate_waterfall(data,x_axis,y_axis)
+        return generate_waterfall(data, x_axis, y_axis)
 
     return None
+
 
 def generate_waterfall(data, x_axis, y_axis):
     if x_axis and y_axis:
@@ -206,10 +222,13 @@ def generate_waterfall(data, x_axis, y_axis):
         fig.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            title =str(y_axis)+ " and "+str(x_axis),
-            showlegend = True
+            title=str(y_axis) + " and " + str(x_axis),
+            showlegend=True
         )
 
+        # Check if kaleido is installed
+        if importlib.util.find_spec("kaleido") is None:
+            raise ImportError("The 'kaleido' package is required for exporting images. Install it using 'pip install -U kaleido'.")
 
         filename_visualize = uuid.uuid4().hex + ".png"
         fig.write_image(file_server_path_image + filename_visualize)
@@ -249,7 +268,10 @@ def generate_bubble_chart(data,x_axis,y_axis):
     if x_axis:
 
         # Create a new figure
+        # Create a new figure
         plt.figure(figsize=(15, 8)) 
+        
+        # Get the aggregated data
         
         # Get the aggregated data
         counts = find_sum(data, x_axis, y_axis)
@@ -273,9 +295,38 @@ def generate_bubble_chart(data,x_axis,y_axis):
         )
 
         # Add labels and title
+
+        # Normalize bubble size and clip it to avoid extreme sizes
+        bubble_size = counts["sum"] * 10  # Scale the bubble size (adjust multiplier as needed)
+        bubble_size = np.clip(bubble_size, 50, 2000)  # Avoid very small or very large bubbles
+
+        # Normalize for color scale based on 'sum'
+        norm = plt.Normalize(min(counts["sum"]), max(counts["sum"]))  
+        colors = plt.cm.viridis(norm(counts["sum"]))  # Using 'viridis' colormap
+
+        # Create the scatter plot (Bubble chart)
+        plt.scatter(
+            counts[str(x_axis)], 
+            counts["sum"],  
+            s=bubble_size,  # Size of the bubble
+            marker='o', 
+            c=colors,  # Color based on 'sum'
+            label=x_axis
+        )
+
+        # Add labels and title
         plt.xlabel(str(x_axis))   
         plt.ylabel("sum of " + str(y_axis))
+        plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
+        
+        # Adjust y-axis limits dynamically based on data
+        plt.ylim([min(counts["sum"]) * 0.9, max(counts["sum"]) * 1.1])
+        
+        # Show legend
+        plt.legend()
+
+        # Save the plot to file
         
         # Adjust y-axis limits dynamically based on data
         plt.ylim([min(counts["sum"]) * 0.9, max(counts["sum"]) * 1.1])
@@ -288,22 +339,33 @@ def generate_bubble_chart(data,x_axis,y_axis):
         plt.savefig(file_server_path_image + filename_visualize, transparent=True)
 
         # Return the image URL
+        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+
+        # Return the image URL
         return {
+            "_id": str(uuid.uuid4().hex),
             "_id": str(uuid.uuid4().hex),
             "img": generateBASEURL(filename_visualize)
         }
 
     return None
 
-def generate_heatmap_chart(data,x_axis,y_axis):
+def generate_heatmap_chart(data, x_axis, y_axis):
+    if x_axis and y_axis:
 
-    if x_axis:
+        # Filter out rows where either column contains non-numeric values
+        data[x_axis] = pd.to_numeric(data[x_axis], errors='coerce')  # Coerce non-numeric to NaN
+        data[y_axis] = pd.to_numeric(data[y_axis], errors='coerce')  # Coerce non-numeric to NaN
 
+        # Drop rows with NaN values after coercion
+        data_clean = data.dropna(subset=[x_axis, y_axis])
+
+        # Create the heatmap
         plt.figure(figsize=(15, 15)) 
-        counts = find_sum(data, x_axis, y_axis)
-        df = pd.concat([data[x_axis].astype(float), data[y_axis].astype(float)], axis=1)
+        counts = find_sum(data_clean, x_axis, y_axis)
+        df = pd.concat([data_clean[x_axis].astype(float), data_clean[y_axis].astype(float)], axis=1)
 
-        # Replace this line in your code
+        # Create heatmap
         plt.imshow(df, cmap='autumn', interpolation='nearest')
         plt.colorbar()
 
@@ -311,14 +373,16 @@ def generate_heatmap_chart(data,x_axis,y_axis):
         plt.ylabel("sum of "+str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
         plt.ylim([0, 15])
-        plt.legend()  # Add legend if multiple lines
 
+        # Optionally, you can add a legend if you have multiple lines or categories
+        plt.legend()  # This might be unnecessary for a heatmap, unless you're plotting multiple series
+
+        # Save the image
         filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize,transparent=True)
+        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
 
-    
         return {
-            "_id":str(uuid.uuid4().hex),
+            "_id": str(uuid.uuid4().hex),
             "img": generateBASEURL(filename_visualize)
         }
 
@@ -516,6 +580,88 @@ def generate_donut_chart(data, x_axis):
             "img": generateBASEURL(filename_visualize)
         }
 
+    return None
+
+
+def generate_map_chart(data, x_axis, y_axis):
+    if not x_axis or not y_axis:
+        return {"error": "Both x_axis and y_axis must be provided."}
+
+    shapefile_path = os.path.join(os.getcwd(), 'shapefiles', 'ne_110m_admin_0_countries.shp')
+    if not os.path.exists(shapefile_path):
+        return {"error": f"Shapefile not found at {shapefile_path}"}
+
+    world = gpd.read_file(shapefile_path)
+    country_col = find_location_column(world)
+    if not country_col:
+        return {"error": f"No valid country column found in the shapefile. Columns: {world.columns.tolist()}"}
+
+    location_column = find_location_column(data, column_name=x_axis)
+    if not location_column:
+        return {"error": f"Location column '{x_axis}' not found in the data."}
+
+    world = world.rename(columns={country_col: 'Country'})
+    data = data.rename(columns={location_column: 'Country'})
+    
+    data['Country'] = data['Country'].str.lower().str.strip()
+    world['Country'] = world['Country'].str.lower().str.strip()
+
+    merged = world.merge(data, on='Country', how='left')
+
+    if merged[y_axis].isnull().all():
+        return {"error": "No matches found between dataset countries and the shapefile."}
+
+    merged = merged.dropna(subset=[y_axis])
+    merged = merged.sort_values(by=y_axis, ascending=False)
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+    norm = mcolors.Normalize(vmin=merged[y_axis].min(), vmax=merged[y_axis].max())
+    sm = plt.cm.ScalarMappable(cmap='Blues', norm=norm)
+    sm.set_array([])
+
+    im = merged.plot(column=y_axis, ax=ax, legend=False, cmap='Blues')
+
+    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', shrink=0.6, aspect=25)
+    cbar.set_label(y_axis, fontsize=12)
+    cbar.ax.yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    cbar.set_ticks([merged[y_axis].min(), merged[y_axis].max()])
+    cbar.set_ticklabels([f"{merged[y_axis].min():,.0f}", f"{merged[y_axis].max():,.0f}"])
+    
+    ax.set_title(f"{y_axis} Distribution by Country", fontsize=18, fontweight='bold', pad=20)
+    ax.axis('off')
+
+    filename_visualize = f"{uuid.uuid4().hex}.png"
+    image_path = os.path.join(file_server_path_image, filename_visualize)
+    os.makedirs(os.path.dirname(image_path), exist_ok=True)
+
+    plt.savefig(image_path, transparent=True, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return {
+        "_id": str(uuid.uuid4().hex),
+        "img": generateBASEURL(filename_visualize),
+        "metadata": {
+            "x_axis": x_axis,
+            "y_axis": y_axis,
+            "description": f"This map highlights the distribution of {y_axis} across various {x_axis}.",
+            "total_countries": len(merged)
+        }
+    }
+
+
+def find_location_column(df, column_name="Country"):
+    
+    print(f"Columns in the DataFrame: {df.columns.tolist()}")  # Debugging: Print column names in the shapefile
+    
+    if column_name in df.columns:
+        return column_name
+    
+    possible_columns = ['NAME', 'SOVEREIGNT', 'ADMIN', 'COUNTRY', 'REGION_UN']
+    for col in possible_columns:
+        if col in df.columns:
+            return col
+    
     return None
 
 def generate_card_KPI_CATEGORY(data,aggregation,field):

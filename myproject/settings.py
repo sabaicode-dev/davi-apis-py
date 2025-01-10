@@ -53,7 +53,14 @@ INSTALLED_APPS = [
     'corsheaders',
     'visualization',
     'image_visualize',
-    'aigeneratedes'
+    'aigeneratedes',
+    'readData_MongoDB',
+    'loadMySQL',
+    'loadSQLServer',
+    'loadPostgresSQL',
+    'loadMariadb',
+    'save_visualize',
+    'notification_app',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -90,7 +97,6 @@ CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',  # Your React app's origin
 ]
-
 
 
 ROOT_URLCONF = 'myproject.urls'
@@ -170,13 +176,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# file
-MEDIA_URL = '/media/'
-MEDIA_ROOT = 'D://SabaiCode//Project//davi-apis//server//images//'
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
-STATIC_URL = '/static/'
-STATIC_ROOT = 'D://SabaiCode//Project//davi-apis//server//static//'
-
-
-
+# New
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

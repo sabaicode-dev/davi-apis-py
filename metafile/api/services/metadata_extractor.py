@@ -2,9 +2,15 @@ import pandas as pd
 import numpy as np
 import uuid
 from collections import Counter
+from utils.file_util import is_boolean_column
 
 from metafile.api.services import data_cleaning
+from metafile.api.models import Metadata
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MetadataExtractor:
 
@@ -36,108 +42,283 @@ class MetadataExtractor:
     return self.metadata
 
 
+  # def initialize_columns(self, df):
+  #   print('Initializing columns...')
+  #   print('df cols:::' , df.columns)
+  #   self.columns = df.columns.tolist()
+  #   print('columns:', self.columns)
+  #   for idx, col in enumerate(self.columns):
+  #     # Record data type and order
+  #     self.data_types[col] = str(df[col].dtype)
+  #     self.column_order[col] = idx
+  #     # Initialize counts and unique values
+  #     self.total_counts[col] = 0
+  #     self.non_null_counts[col] = 0
+  #     self.valid_counts[col] = 0
+  #     self.unique_values[col] = set()
+
+  #     # Decide whether to treat the column as numeric or string
+  #     if pd.api.types.is_numeric_dtype(df[col]):
+  #       # Initialize structures for numeric columns
+  #       self.numeric_stats[col] = {
+  #           'sum': 0.0,
+  #           'sum_sq': 0.0,
+  #           'min': np.inf,
+  #           'max': -np.inf,
+  #           'count': 0,
+  #           'finite_count': 0,
+  #           'all_data': []  # For quantile calculation
+  #       }
+  #       self.histograms[col] = Counter()
+  #     elif data_cleaning.is_date_column(series=df[col]):
+  #       # Convert to datetime
+  #       df[col] = pd.to_datetime(df[col], errors='coerce')
+  #       self.datetime_stats[col] = {
+  #         'min': None,
+  #         'max': None,
+  #         'mean': None,
+  #         'all_data': []
+  #       }
+  #     else:
+  #       # Initialize structures for string columns
+  #       self.string_stats[col] = Counter()
+
   def initialize_columns(self, df):
     print('Initializing columns...')
-    print('df cols:::' , df.columns)
     self.columns = df.columns.tolist()
-    print('columns:', self.columns)
+    
     for idx, col in enumerate(self.columns):
-      # Record data type and order
-      self.data_types[col] = str(df[col].dtype)
-      self.column_order[col] = idx
-      # Initialize counts and unique values
-      self.total_counts[col] = 0
-      self.non_null_counts[col] = 0
-      self.valid_counts[col] = 0
-      self.unique_values[col] = set()
+        # Record data type and order
+        self.data_types[col] = str(df[col].dtype)
+        self.column_order[col] = idx
+        
+        # Initialize counts and unique values
+        self.total_counts[col] = 0
+        self.non_null_counts[col] = 0
+        self.valid_counts[col] = 0
+        self.unique_values[col] = set()
 
-      # Decide whether to treat the column as numeric or string
-      if pd.api.types.is_numeric_dtype(df[col]):
-        # Initialize structures for numeric columns
-        self.numeric_stats[col] = {
-            'sum': 0.0,
-            'sum_sq': 0.0,
-            'min': np.inf,
-            'max': -np.inf,
-            'count': 0,
-            'finite_count': 0,
-            'all_data': []  # For quantile calculation
+        # Initialize appropriate statistics based on column type
+        if is_boolean_column(df[col]):
+            self.string_stats[col] = Counter()  # We'll use this for boolean values too
+        elif pd.api.types.is_numeric_dtype(df[col]):
+            self.numeric_stats[col] = {
+                'sum': 0.0,
+                'sum_sq': 0.0,
+                'min': np.inf,
+                'max': -np.inf,
+                'count': 0,
+                'finite_count': 0,
+                'all_data': []
+            }
+        elif data_cleaning.is_date_column(df[col]):
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+            self.datetime_stats[col] = {
+                'min': None,
+                'max': None,
+                'mean': None,
+                'all_data': []
+            }
+        else:
+            self.string_stats[col] = Counter()
+
+  def process_boolean_column(self, col, col_data):
+    """Process boolean column data safely."""
+    try:
+        if col not in self.string_stats:
+            self.string_stats[col] = Counter()
+            
+        # Convert to string and standardize
+        str_data = col_data.fillna('').astype(str).str.lower().str.strip()
+        
+        # Map various boolean representations to True/False
+        bool_map = {
+            'true': True, '1': True, 'yes': True, 't': True, 'y': True,
+            'false': False, '0': False, 'no': False, 'f': False, 'n': False,
+            '': None  # Handle empty strings
         }
-        self.histograms[col] = Counter()
-      elif data_cleaning.is_date_column(series=df[col]):
-        # Convert to datetime
-        df[col] = pd.to_datetime(df[col], errors='coerce')
-        self.datetime_stats[col] = {
-          'min': None,
-          'max': None,
-          'mean': None,
-          'all_data': []
-        }
-      else:
-        # Initialize structures for string columns
+        
+        # Count valid values
+        valid_mask = str_data.isin(bool_map.keys())
+        self.valid_counts[col] += valid_mask.sum()
+        
+        # Update string stats for boolean values
+        valid_data = str_data[valid_mask]
+        if not valid_data.empty:
+            value_counts = valid_data.value_counts()
+            for value, count in value_counts.items():
+                self.string_stats[col][value] += count
+            
+    except Exception as e:
+        logger.error(f"Error processing boolean column {col}: {str(e)}")
+        # Initialize empty counter if error occurs
         self.string_stats[col] = Counter()
-
+  # def update_statistics(self, df):
+  #   for col in self.columns:
+  #     col_data = df[col]
+  #     self.total_counts[col] += len(col_data)
+  #     # Count non-null (not NaN) values
+  #     non_null_mask = col_data.notnull()
+  #     self.non_null_counts[col] += non_null_mask.sum()
+  #     # Update unique values
+  #     self.unique_values[col].update(col_data.dropna().unique())
+  #     if col in self.numeric_stats:
+  #       # Process numeric columns
+  #       self.process_numeric_column(col, col_data)
+  #     elif col in self.datetime_stats:
+  #       # Process datetime columns
+  #       self.process_datetime_column(col, col_data)
+  #     else:
+  #       # Process string columns
+  #       self.process_string_column(col, col_data)
 
   def update_statistics(self, df):
-    for col in self.columns:
-      col_data = df[col]
-      self.total_counts[col] += len(col_data)
-      # Count non-null (not NaN) values
-      non_null_mask = col_data.notnull()
-      self.non_null_counts[col] += non_null_mask.sum()
-      # Update unique values
-      self.unique_values[col].update(col_data.dropna().unique())
-      if col in self.numeric_stats:
-        # Process numeric columns
-        self.process_numeric_column(col, col_data)
-      elif col in self.datetime_stats:
-        # Process datetime columns
-        self.process_datetime_column(col, col_data)
-      else:
-        # Process string columns
-        self.process_string_column(col, col_data)
+    try:
+        for col in self.columns:
+            try:
+                col_data = df[col]
+                self.total_counts[col] += len(col_data)
 
+                # Count non-null values
+                non_null_mask = col_data.notnull()
+                self.non_null_counts[col] += non_null_mask.sum()
+
+                # Update unique values safely
+                try:
+                    unique_vals = col_data.dropna().unique()
+                    if isinstance(unique_vals, np.ndarray):
+                        unique_vals = unique_vals.tolist()
+                    self.unique_values[col].update(unique_vals)
+                except Exception as e:
+                    logger.warning(f"Error updating unique values for column {col}: {str(e)}")
+
+                # Process column based on type
+                if col in self.numeric_stats:
+                    self.process_numeric_column(col, col_data)
+                elif col in self.datetime_stats:
+                    self.process_datetime_column(col, col_data)
+                elif is_boolean_column(col_data):
+                    self.process_boolean_column(col, col_data)
+                else:
+                    self.process_string_column(col, col_data)
+                    
+            except KeyError:
+                logger.error(f"Column {col} not found in dataframe")
+                continue
+            except Exception as e:
+                logger.error(f"Error processing column {col}: {str(e)}")
+                continue
+                
+    except Exception as e:
+        logger.error(f"Error in update_statistics: {str(e)}")
+        raise
+
+
+
+  # def compile_metadata(self):
+  #   for col in self.columns:
+  #     # Initialize column metadata
+  #     col_metadata = {
+  #       'type': 'OBJECT_TYPE_TABLE_COLUMN',
+  #       'key': str(uuid.uuid4().hex),
+  #       'name': col,
+  #       'description': '',  # Add descriptions if available
+  #       'table_column_info': {},
+  #       'table_column_metrics': {}
+  #     }
+  #     # Populate table column info
+  #     col_info = {
+  #       'order': self.column_order[col],
+  #       'original_type': self.data_types[col],
+  #     }
+
+
+  #     if col in self.numeric_stats:
+  #       # Column is numeric
+  #       col_info['type'] = 'NUMERIC'
+  #       col_info['extended_type'] = 'INTEGER' if pd.api.types.is_integer_dtype(self.data_types[col]) else 'FLOAT'
+  #       # Compute numeric metrics
+  #       col_metrics = self.compute_numeric_metrics(col, histogram_method="fd")
+  #     elif col in self.datetime_stats:
+  #       # Column is datetime
+  #       col_info['type'] = 'DATE_TIME'
+  #       col_info['extended_type'] = 'DATE_TIME'
+  #       # Compute datetime metrics
+  #       col_metrics = self.compute_datetime_metrics(col)
+  #     else:
+  #       # Column is string
+  #       col_info['type'] = 'STRING'
+  #       col_info['extended_type'] = 'STRING'
+  #       # Compute string metrics
+  #       col_metrics = self.compute_string_metrics(col)
+        
+  #     col_metadata['table_column_info'] = col_info
+  #     col_metadata['table_column_metrics'] = col_metrics
+  #     self.metadata.append(col_metadata)
 
   def compile_metadata(self):
-    for col in self.columns:
-      # Initialize column metadata
-      col_metadata = {
-        'type': 'OBJECT_TYPE_TABLE_COLUMN',
-        'key': str(uuid.uuid4().hex),
-        'name': col,
-        'description': '',  # Add descriptions if available
-        'table_column_info': {},
-        'table_column_metrics': {}
-      }
-      # Populate table column info
-      col_info = {
-        'order': self.column_order[col],
-        'original_type': self.data_types[col],
-      }
+    try:
+        for col in self.columns:
+            try:
+                col_metadata = {
+                    'type': 'OBJECT_TYPE_TABLE_COLUMN',
+                    'key': str(uuid.uuid4().hex),
+                    'name': col,
+                    'description': '',
+                    'table_column_info': {},
+                    'table_column_metrics': {}
+                }
 
+                # Determine column type
+                col_info = {
+                    'order': self.column_order.get(col, 0),
+                    'original_type': self.data_types.get(col, 'unknown'),
+                }
 
-      if col in self.numeric_stats:
-        # Column is numeric
-        col_info['type'] = 'NUMERIC'
-        col_info['extended_type'] = 'INTEGER' if pd.api.types.is_integer_dtype(self.data_types[col]) else 'FLOAT'
-        # Compute numeric metrics
-        col_metrics = self.compute_numeric_metrics(col, histogram_method="fd")
-      elif col in self.datetime_stats:
-        # Column is datetime
-        col_info['type'] = 'DATE_TIME'
-        col_info['extended_type'] = 'DATE_TIME'
-        # Compute datetime metrics
-        col_metrics = self.compute_datetime_metrics(col)
-      else:
-        # Column is string
-        col_info['type'] = 'STRING'
-        col_info['extended_type'] = 'STRING'
-        # Compute string metrics
-        col_metrics = self.compute_string_metrics(col)
-        
-      col_metadata['table_column_info'] = col_info
-      col_metadata['table_column_metrics'] = col_metrics
-      self.metadata.append(col_metadata)
+                try:
+                    # Get column data for type checking
+                    if col in self.string_stats:
+                        series = pd.Series(list(self.string_stats[col].elements()))
+                        is_bool = is_boolean_column(series)
+                    else:
+                        is_bool = False
+
+                    # Assign type and metrics based on column characteristics
+                    if is_bool:
+                        col_info['type'] = 'BOOLEAN'
+                        col_info['extended_type'] = 'BOOLEAN'
+                        col_metrics = self.compute_boolean_metrics(col)
+                    elif col in self.numeric_stats:
+                        col_info['type'] = 'NUMERIC'
+                        col_info['extended_type'] = 'INTEGER' if 'int' in self.data_types.get(col, '') else 'FLOAT'
+                        col_metrics = self.compute_numeric_metrics(col)
+                    elif col in self.datetime_stats:
+                        col_info['type'] = 'DATE_TIME'
+                        col_info['extended_type'] = 'DATE_TIME'
+                        col_metrics = self.compute_datetime_metrics(col)
+                    else:
+                        col_info['type'] = 'STRING'
+                        col_info['extended_type'] = 'STRING'
+                        col_metrics = self.compute_string_metrics(col)
+
+                except Exception as e:
+                    logger.error(f"Error determining column type for {col}: {str(e)}")
+                    # Fallback to string type
+                    col_info['type'] = 'STRING'
+                    col_info['extended_type'] = 'STRING'
+                    col_metrics = self.compute_string_metrics(col)
+
+                col_metadata['table_column_info'] = col_info
+                col_metadata['table_column_metrics'] = col_metrics
+                self.metadata.append(col_metadata)
+
+            except Exception as e:
+                logger.error(f"Error processing metadata for column {col}: {str(e)}")
+                continue
+
+    except Exception as e:
+        logger.error(f"Error in compile_metadata: {str(e)}")
+        raise
 
 
   def process_numeric_column(self, col, col_data):
@@ -162,14 +343,24 @@ class MetadataExtractor:
       stats['all_data'].extend(finite_data.tolist())
 
   
+  # def process_string_column(self, col, col_data):
+  #   # Count valid (non-null) entries
+  #   non_null_mask = col_data.notnull()
+  #   self.valid_counts[col] += non_null_mask.sum()
+  #   # Update string value counts
+  #   self.string_stats[col].update(col_data.dropna().astype(str))
+
   def process_string_column(self, col, col_data):
-    # Count valid (non-null) entries
+    # Handle non-null values
     non_null_mask = col_data.notnull()
     self.valid_counts[col] += non_null_mask.sum()
-    # Update string value counts
-    self.string_stats[col].update(col_data.dropna().astype(str))
-
-
+    
+    # Convert to string and standardize case
+    str_data = col_data.dropna().astype(str).str.lower()
+    
+    # Update string value counts without using numpy operations
+    for value in str_data:
+        self.string_stats[col][value] += 1
    
   def process_datetime_column(self, col, col_data):
     col_data = pd.to_datetime(col_data, errors='coerce')
@@ -352,3 +543,150 @@ class MetadataExtractor:
         }
         histogram_data['buckets'].append(bucket)
     return histogram_data
+
+
+
+
+
+
+
+
+
+
+
+
+  # Detect metadata for boolean type
+  def _process_column(self, series):
+      column_type = self._detect_column_type(series)
+      metrics = self._compute_column_metrics(series, column_type)
+      return {
+          "name": series.name,
+          "type": column_type,
+          "metrics": metrics,
+      }
+  def _detect_column_type(self, series):
+      if is_boolean_column(series):
+          return "BOOLEAN"
+      elif data_cleaning.is_date_column(series):
+          return "DATE_TIME"
+      elif pd.api.types.is_numeric_dtype(series):
+          return "NUMERIC"
+      else:
+          return "STRING"
+  def compute_column_metrics(self, series, column_type):
+      if column_type == "NUMERIC":
+          return self.compute_numeric_metrics(series)
+      elif column_type == "DATE_TIME":
+          return self.compute_datetime_metrics(series)
+      elif column_type == "BOOLEAN":
+          return self.compute_boolean_metrics(series)
+      else:
+          return self.compute_string_metrics(series)
+      
+  # def compute_boolean_metrics(self, col):
+  #   """Compute metrics specific to boolean columns."""
+  #   # Get the series data
+  #   data = pd.Series(self.string_stats[col].elements())
+    
+  #   # Convert to standardized boolean values
+  #   bool_map = {
+  #       'true': True, '1': True, 'yes': True, 't': True, 'y': True,
+  #       'false': False, '0': False, 'no': False, 'f': False, 'n': False
+  #   }
+    
+  #   standardized_data = data.str.lower().map(bool_map)
+    
+  #   # Calculate metrics
+  #   total_true = int((standardized_data == True).sum())
+  #   total_false = int((standardized_data == False).sum())
+    
+  #   return {
+  #       'total_count': self.total_counts[col],
+  #       'non_null_count': self.non_null_counts[col],
+  #       'valid_count': self.valid_counts[col],
+  #       'boolean_metrics': {
+  #           'true_count': total_true,
+  #           'false_count': total_false,
+  #           'true_ratio': float(total_true / len(standardized_data)) if len(standardized_data) > 0 else 0.0
+  #       }
+  #   }
+
+  def compute_boolean_metrics(self, col):
+    """Compute metrics specific to boolean columns."""
+    try:
+        counts = self.string_stats.get(col, Counter())
+        
+        # Map various boolean representations
+        true_values = {'true', '1', 'yes', 't', 'y'}
+        false_values = {'false', '0', 'no', 'f', 'n'}
+        
+        # Calculate true/false counts safely
+        true_count = sum(counts.get(val, 0) for val in true_values)
+        false_count = sum(counts.get(val, 0) for val in false_values)
+        total_valid = true_count + false_count
+        
+        return {
+            'total_count': self.total_counts.get(col, 0),
+            'non_null_count': self.non_null_counts.get(col, 0),
+            'valid_count': self.valid_counts.get(col, 0),
+            'boolean_metrics': {
+                'true_count': true_count,
+                'false_count': false_count,
+                'true_ratio': float(true_count / total_valid) if total_valid > 0 else 0.0,
+                'counts': [
+                    {'value': 'true', 'count': true_count},
+                    {'value': 'false', 'count': false_count}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error computing boolean metrics for column {col}: {str(e)}")
+        # Return basic metrics structure
+        return {
+            'total_count': self.total_counts.get(col, 0),
+            'non_null_count': self.non_null_counts.get(col, 0),
+            'valid_count': 0,
+            'boolean_metrics': {
+                'true_count': 0,
+                'false_count': 0,
+                'true_ratio': 0.0,
+                'counts': []
+            }
+        }
+
+
+def update_description(metadata_key, new_description):
+    """
+    Update the description of a column in the metadata based on its key.
+
+    Args:
+        metadata_key (str): The key of the column whose description needs to be updated.
+        new_description (str): The new description to set.
+
+    Returns:
+        dict: Result message indicating success or failure.
+    """
+    try:
+        # Find the metadata instance containing the column
+        metadata_instance = Metadata.objects.filter(metadata__contains=[{"key": metadata_key}]).first()
+
+        if not metadata_instance:
+            return {"error": "Metadata not found"}
+
+        # Update the description field for the matching key
+        updated = False
+        for column in metadata_instance.metadata:
+            if column["key"] == metadata_key:
+                column["description"] = new_description
+                updated = True
+                break
+
+        if not updated:
+            return {"error": "Key not found in metadata"}
+
+        # Save the updated metadata instance
+        metadata_instance.save()
+        return {"message": "Description updated successfully"}
+
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}

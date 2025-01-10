@@ -1,6 +1,7 @@
 import os
 import uuid
 from dotenv import load_dotenv
+import numpy as np
 
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
@@ -18,7 +19,6 @@ def get_file_extension(filename):
 
 
 def handle_uploaded_file(f):
-
     original_name = str(f)
     original_extension = get_file_extension(original_name)
     name = original_name.replace(original_extension, "")
@@ -45,3 +45,48 @@ def find_file_by_name_sourse(filename):
         return file_state
     except FileNotFoundError:
         return None
+    
+
+# Handle: boolean detect datatype in column
+import pandas as pd
+def is_boolean_column(series):
+    """Detect if a column contains boolean-like values."""
+    try:
+        # Handle already boolean dtype
+        if pd.api.types.is_bool_dtype(series):
+            return True
+            
+        # Convert series to string and handle mixed types safely
+        str_series = series.dropna().astype(str).str.lower().str.strip()
+        
+        # Define boolean-like values
+        boolean_values = {
+            'true', 'false', '1', '0', 'yes', 'no', 
+            't', 'f', 'y', 'n', 'true.', 'false.',
+            'True', 'False',True,False
+        }
+        
+        # Check unique values
+        unique_vals = set(str_series.unique())
+        
+        # Only consider it boolean if all values match boolean patterns
+        # and there are at least 2 unique values
+        return len(unique_vals) >= 1 and unique_vals.issubset(boolean_values)
+        
+    except Exception:
+        return False
+
+def replace_nan_with_none(data):
+    """
+    Recursively replaces NaN values with None.
+    """
+    import numpy as np
+
+    if isinstance(data, dict):
+        return {k: replace_nan_with_none(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [replace_nan_with_none(item) for item in data]
+    elif isinstance(data, float) and np.isnan(data):
+        return None
+    else:
+        return data
