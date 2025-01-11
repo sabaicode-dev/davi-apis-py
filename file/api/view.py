@@ -269,38 +269,33 @@ class FileDetailsViews(APIView):
 
     def analyze_columns(self, data):
         """
-        Perform comprehensive column analysis
+        Perform comprehensive column analysis.
         """
         headers = data.get("header", [])
         records = data.get("data", [])
-        
+
         column_analysis = {}
         for header in headers:
             column_data = [str(row.get(header, '')) for row in records if header in row]
-            
+
             column_analysis[header] = {
                 "name": header,
                 "total_values": len(column_data),
                 "unique_values": len(set(column_data)),
                 "unique_percentage": round(len(set(column_data)) / len(column_data) * 100, 2) if column_data else 0,
                 "data_types": self.detect_column_types(column_data),
-                "sample_values": column_data[:5],  # First 5 sample values
-                "is_nullable": any(not value for value in column_data)
+                "sample_values": column_data[:5],
+                "is_nullable": any(not value for value in column_data),
             }
-        
+
         return column_analysis
 
     def detect_column_types(self, column_data):
         """
-        Detect potential data types for a column
+        Detect potential data types for a column.
         """
-        data_types = {
-            "numeric": 0,
-            "string": 0,
-            "boolean": 0,
-            "date": 0
-        }
-        
+        data_types = {"numeric": 0, "string": 0, "boolean": 0, "date": 0}
+
         for value in column_data:
             try:
                 # Numeric check
@@ -308,52 +303,67 @@ class FileDetailsViews(APIView):
                 data_types["numeric"] += 1
             except ValueError:
                 # Boolean check
-                if value.lower() in ['true', 'false', '0', '1']:
+                if value.lower() in ["true", "false", "0", "1"]:
                     data_types["boolean"] += 1
-                # Date check (basic)
+                # Date check
                 elif self.is_date(value):
                     data_types["date"] += 1
-                # String (default)
                 else:
                     data_types["string"] += 1
-        
-        # Convert to percentages
+
         total = len(column_data)
-        return {k: round(v/total * 100, 2) for k, v in data_types.items()}
+        return {k: round(v / total * 100, 2) for k, v in data_types.items()}
 
     def is_date(self, value):
         """
-        Basic date detection
+        Basic date detection.
         """
         date_formats = [
-            r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
-            r'^\d{2}/\d{2}/\d{4}$',   # MM/DD/YYYY
-            r'^\d{2}-\d{2}-\d{4}$'    # DD-MM-YYYY
+            r"^\d{4}-\d{2}-\d{2}$",  # YYYY-MM-DD
+            r"^\d{2}/\d{2}/\d{4}$",  # MM/DD/YYYY
+            r"^\d{2}-\d{2}-\d{4}$",  # DD-MM-YYYY
         ]
-        
+
         return any(re.match(pattern, str(value)) for pattern in date_formats)
 
     def get(self, request, *args, **kwargs):
         file_id = kwargs.get("file_id")
 
-        # Validate the file_id format
         if not ObjectId.is_valid(file_id):
             return Response(
-                {"error": "Invalid file ID format."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid file ID format."}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Fetch the file by _id
-        file = get_object_or_404(File, _id=ObjectId(file_id))
+        try:
+            file = get_object_or_404(File, _id=ObjectId(file_id))
+        except Exception as e:
+            logger.error(f"File not found: {str(e)}")
+            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Process the file data
         filename = file.filename
-        data = service.load_dataset(filename, file=file.file)
+        try:
+            data = service.load_dataset(filename, file=file.file)
+        except Exception as e:
+            logger.error(f"Error loading dataset for file {filename}: {str(e)}")
+            return Response(
+                {"error": "Failed to load dataset.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        # Analyze columns
+        if not data:
+            return Response(
+                {"error": "Unable to load dataset. The file might be empty or corrupted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if "header" not in data or "data" not in data:
+            return Response(
+                {"error": "Dataset structure is invalid. Missing 'header' or 'data' keys."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         column_analysis = self.analyze_columns(data)
 
-        # Update response data with file details
         data.update({
             "_id": str(file._id),
             "created_at": file.created_at,
@@ -363,13 +373,10 @@ class FileDetailsViews(APIView):
             "type": file.type,
         })
 
-        # Paginate the records
         records = data.get("data", [])
         paginator = self.pagination_class()
         result_page = paginator.paginate_queryset(records, request)
 
-
-        # Construct paginated response
         paginated_response = paginator.get_paginated_response(result_page).data
         paginated_response.update({
             "_id": str(file._id),
@@ -382,11 +389,12 @@ class FileDetailsViews(APIView):
                 "total_rows": len(records),
                 "total_columns": len(data.get("header", [])),
                 "file_type": file.type,
-                "file_size": file.size
-            }
+                "file_size": file.size,
+            },
         })
 
         return Response(paginated_response)
+
 
 
 # Update file details

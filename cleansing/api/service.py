@@ -74,8 +74,15 @@ def data_cleansing(filename):
 
 def process_cleansing(filename, process_list):
     """
-    Cleanses the given file based on the specified processes and saves the result as a new file.
+    Cleanses the given file and saves it in the same directory as the original file.
     """
+    import os
+    import pandas as pd
+    import uuid
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     file_path = os.path.join(file_server_path_file, filename)
 
     if not os.path.exists(file_path):
@@ -86,37 +93,29 @@ def process_cleansing(filename, process_list):
         # Load the dataset
         data = pd.read_csv(file_path)
 
-        # Process: Remove rows with missing values
+        # Perform cleansing
         if "delete_missing_row" in process_list:
             data = data.dropna()
-
-        # Process: Drop duplicate rows
         if "delete_duplicate_row" in process_list:
             data = data.drop_duplicates()
 
-        # Generate random string for filename
+        # Generate a cleansed filename
         random_id = str(uuid.uuid4())[:8]
         file_extension = os.path.splitext(filename)[1]
         cleansed_filename = f"cleansed_{random_id}{file_extension}"
-        
-        # Create the CSV directory path
-        csv_dir = os.path.join(file_server_path_file, 'csv')
-        
-        # Create the directory if it doesn't exist
-        os.makedirs(csv_dir, exist_ok=True)
-        
-        # Create the full path for the cleansed file
-        cleansed_path = os.path.join(csv_dir, cleansed_filename)
-        
-        # Save the file
+
+        # Save in the same directory as the original file
+        original_dir = os.path.dirname(file_path)
+        cleansed_path = os.path.join(original_dir, cleansed_filename)
         data.to_csv(cleansed_path, index=False)
 
-        logger.info(f"Cleansing completed. Saved to {cleansed_path}")
+        logger.info(f"Cleansed file saved to: {cleansed_path}")
 
         return {
             "filename": cleansed_filename,
+            "file_path": cleansed_path,
             "size": data.shape[0],
-            "message": "Cleansing process completed successfully."
+            "message": "Cleansing process completed successfully.",
         }
     except Exception as e:
         logger.error(f"Error during cleansing process: {str(e)}")
