@@ -15,9 +15,17 @@ from project.models import Project
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
+# Get the file server path from environment variables
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
+
+# Ensure the directory exists
+if not file_server_path_file:
+    raise EnvironmentError("FILE_SERVER_PATH_FILE is not set in the environment variables.")
 if not os.path.exists(file_server_path_file):
-    raise FileNotFoundError(f"Directory {file_server_path_file} does not exist.")
+    os.makedirs(file_server_path_file, exist_ok=True)  # Create the directory if it doesn't exist
+
+print(f"File server path: {file_server_path_file}")
+print(f"Directory exists: {os.path.exists(file_server_path_file)}")
 
 
 def get_file_extension(filename):
