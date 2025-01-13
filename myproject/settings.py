@@ -159,6 +159,10 @@ STATIC_ROOT = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, 'staticfiles'))
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 
+# Dynamically construct file server paths
+FILE_SERVER_PATH_FILE = os.getenv('FILE_SERVER_PATH_FILE', os.path.join(MEDIA_ROOT, 'files'))
+FILE_SERVER_PATH_IMAGE = os.getenv('FILE_SERVER_PATH_IMAGE', os.path.join(MEDIA_ROOT, 'images'))
+
 # Base URL for serving media files
 BASE_URL_FILE = os.getenv('BASE_URL_FILE', 'http://127.0.0.1:8000/media/')
 
