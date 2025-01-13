@@ -84,7 +84,12 @@ MIDDLEWARE = [
 # settings.py
 CORS_ALLOW_CREDENTIALS = True  # Allow cookies and credentials in requests
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:8080',  # Your React app's origin
+    'http://localhost:8080',
+    'http://3.24.110.41:8000',
+    'http://localhost:8080',
+    'http://3.24.110.41:8000',
+    'http://0.0.0.0:8000'
+
 ]
 
 
