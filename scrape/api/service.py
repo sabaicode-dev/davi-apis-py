@@ -11,21 +11,15 @@ import chardet
 from bson import ObjectId
 from project.models import Project
 
-# Load environment variables
-dotenv_path_dev = '.env'
-load_dotenv(dotenv_path=dotenv_path_dev)
-
-# Get the file server path from environment variables
-file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
-
-# Ensure the directory exists
+# Get file server path from environment variables
+file_server_path_file = os.getenv('FILE_SERVER_PATH_FILE')
 if not file_server_path_file:
     raise EnvironmentError("FILE_SERVER_PATH_FILE is not set in the environment variables.")
-if not os.path.exists(file_server_path_file):
-    os.makedirs(file_server_path_file, exist_ok=True)  # Create the directory if it doesn't exist
 
-print(f"File server path: {file_server_path_file}")
-print(f"Directory exists: {os.path.exists(file_server_path_file)}")
+# Ensure the directory exists
+if not os.path.exists(file_server_path_file):
+    os.makedirs(file_server_path_file, exist_ok=True)
+    print(f"Created missing directory: {file_server_path_file}")
 
 
 def get_file_extension(filename):
