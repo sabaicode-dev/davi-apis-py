@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from utils.load_env import FILE_LOCAL_SERVER_PATH
+from utils.load_env import FILE_SERVER_PATH_FILE
 
 
 def get_file_extension(filename):
@@ -14,7 +14,7 @@ def handle_uploaded_file(f):
     dataset_id = f"{uuid.uuid4().hex}"
 
     # Create subdirectory based on file type
-    destination_dir = os.path.join(FILE_LOCAL_SERVER_PATH, original_extension)
+    destination_dir = os.path.join(FILE_SERVER_PATH_FILE, original_extension)
     os.makedirs(destination_dir, exist_ok=True)
 
     # Define full path for the file
