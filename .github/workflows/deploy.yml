@@ -3,52 +3,81 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - production2
+      - production2 # Deploy only when pushing to the main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the code
+      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Set up SSH
+      # Step 2: Set up SSH to access EC2
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # Deploy to EC2
-      - name: Deploy to EC2
+      # Step 3: Verify docker-compose.yml exists in the root (skip since no Docker)
+      - name: Verify docker-compose.yml Exists
+        run: |
+          if [ -f docker-compose.yml ]; then
+            echo "Warning: docker-compose.yml found, but Docker is not used in this setup."
+          fi
+
+      # Step 4: Compress project files and upload to EC2
+      - name: Compress and upload project to EC2
+        run: |
+          # Create a temporary directory and copy all project files (excluding unwanted files)
+          mkdir -p temp_dir
+          rsync -a --exclude='.git' --exclude='.github' . temp_dir/
+
+          # Compress the temp directory into app.tar.gz
+          tar -czf app.tar.gz -C temp_dir .  
+
+          # Clean up the temp directory
+          rm -rf temp_dir
+
+          # Copy the compressed tar file to EC2 instance
+          scp -o StrictHostKeyChecking=no app.tar.gz ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:/home/${{ secrets.AWS_EC2_USER }}/
+
+      # Step 5: SSH into EC2, setup environment, and deploy
+      - name: Deploy on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'EOF'
-            # Install Python 3.12 if not already installed
-            if ! python3.12 --version &>/dev/null; then
-              sudo add-apt-repository ppa:deadsnakes/ppa -y
-              sudo apt update
-              sudo apt install -y python3.12 python3.12-venv python3.12-dev
-            fi
-
-            # Navigate to the deployment directory
+            # Navigate to the app directory
             cd /home/${{ secrets.AWS_EC2_USER }}
 
-            # Extract and deploy the app
+            # Remove the old app folder and extract the new code
             rm -rf app
             mkdir app
             tar -xzf app.tar.gz -C app
-            rm -f app.tar.gz
+            cd app
 
-            # Set up virtual environment
-            python3.12 -m venv env
-            source env/bin/activate
+            # Install dependencies and create virtual environment
+            if ! command -v python3 &> /dev/null; then
+              echo "Python 3 not found, installing..."
+              sudo apt update
+              sudo apt install -y python3 python3-pip python3-venv
+            fi
+
+            # Set up virtual environment (optional, but recommended)
+            if [ ! -d "env" ]; then
+              python3.12 -m venv env  # Create the virtual environment
+            fi
+            source env/bin/activate  # Activate the virtual environment
 
             # Install dependencies
-            pip install --upgrade pip
-            pip install -r app/requirements.txt
+            pip install -r requirements.txt
 
-            # Apply migrations and start the app
-            python app/manage.py migrate --noinput
-            nohup gunicorn app.wsgi:application --bind 0.0.0.0:8000 --workers 4 &
+            # Ensure directories are in place
+            mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
+            chmod -R 755 /home/${{ secrets.AWS_EC2_USER }}/app/server/files
+
+            # No Docker deployment anymore, just run the app normally
+            # You can start the app directly or use another method of deployment here
+            # For example, if you're using gunicorn, you can start it like this:
+            nohup python manage.py runserver 0.0.0.0:8000
           EOF
