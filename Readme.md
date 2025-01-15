@@ -1,4 +1,4 @@
-# Project Name
+# Project DAVI
 
 ## Setup and Run the Django REST API
 
