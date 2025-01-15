@@ -1,3 +1,4 @@
+import platform
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -12,13 +13,24 @@ from bson import ObjectId
 from project.models import Project
 
 # Load environment variables
-dotenv_path_dev = '.env.stage'
-load_dotenv(dotenv_path=dotenv_path_dev)
+# Load environment file
+dotenv_path = '.env.stage'
+load_dotenv(dotenv_path=dotenv_path)
 
+# Detect OS and adjust path if needed
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
+
+if platform.system() == "Windows":
+    print("Running on Windows.")
+else:
+    print("Running on Linux.")
+    # Override Windows-style paths with Linux paths
+    file_server_path_file = file_server_path_file.replace("D://SabaiCode//Project//davi-apis//", "/home/ubuntu/app/")
+
 if not os.path.exists(file_server_path_file):
     raise FileNotFoundError(f"Directory {file_server_path_file} does not exist.")
 
+print(f"FILE_SERVER_PATH_FILE: {file_server_path_file}")
 
 def get_file_extension(filename):
     _, extension = os.path.splitext(filename)
