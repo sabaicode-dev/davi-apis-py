@@ -12,7 +12,7 @@ from bson import ObjectId
 from project.models import Project
 
 # Load environment variables
-dotenv_path_dev = '.env'
+dotenv_path_dev = '.env.stage'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
