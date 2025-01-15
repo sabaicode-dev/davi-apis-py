@@ -65,12 +65,16 @@ jobs:
 
             # Set up virtual environment (optional, but recommended)
             if [ ! -d "env" ]; then
-              python3.12 -m venv env  # Create the virtual environment
+              python3 -m venv env  # Create the virtual environment
             fi
             source env/bin/activate  # Activate the virtual environment
 
             # Install dependencies
+            pip install --upgrade pip
             pip install -r requirements.txt
+
+            # Run migrations (this should automatically detect your MongoDB setup)
+            python manage.py migrate --noinput
 
             # Ensure directories are in place
             mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
