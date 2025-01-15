@@ -3,75 +3,52 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - production2  # Deploy only when pushing to the production2 branch
+      - production2
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
+      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Step 2: Set up SSH to access EC2
+      # Set up SSH
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # Step 3: Compress project files and upload to EC2
-      - name: Compress and upload project to EC2
-        run: |
-          # Create a temporary directory and copy all project files (excluding unwanted files)
-          mkdir -p temp_dir
-          rsync -a --exclude='.git' --exclude='.github' . temp_dir/
-
-          # Compress the temp directory into app.tar.gz
-          tar -czf app.tar.gz -C temp_dir .  
-
-          # Clean up the temp directory
-          rm -rf temp_dir
-
-          # Copy the compressed tar file to EC2 instance
-          scp -o StrictHostKeyChecking=no app.tar.gz ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:/home/${{ secrets.AWS_EC2_USER }}/
-
-      # Step 4: SSH into EC2, setup environment, and deploy
-      - name: Deploy on EC2
+      # Deploy to EC2
+      - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'EOF'
-            # Navigate to the app directory
+            # Install Python 3.12 if not already installed
+            if ! python3.12 --version &>/dev/null; then
+              sudo add-apt-repository ppa:deadsnakes/ppa -y
+              sudo apt update
+              sudo apt install -y python3.12 python3.12-venv python3.12-dev
+            fi
+
+            # Navigate to the deployment directory
             cd /home/${{ secrets.AWS_EC2_USER }}
 
-            # Remove the old app folder and extract the new code
+            # Extract and deploy the app
             rm -rf app
             mkdir app
             tar -xzf app.tar.gz -C app
-            rm -f app.tar.gz  # Clean up compressed file
-
-            # Install Python 3 and pip if not already installed
-            if ! command -v python3 &> /dev/null; then
-              echo "Python 3 not found, installing..."
-              sudo apt update && sudo apt install -y python3 python3-pip python3-venv
-            fi
+            rm -f app.tar.gz
 
             # Set up virtual environment
-            if [ ! -d "env" ]; then
-              python3 -m venv env  # Create virtual environment
-            fi
-            source env/bin/activate  # Activate virtual environment
+            python3.12 -m venv env
+            source env/bin/activate
 
             # Install dependencies
             pip install --upgrade pip
             pip install -r app/requirements.txt
 
-            # Apply database migrations
+            # Apply migrations and start the app
             python app/manage.py migrate --noinput
-
-            # Ensure necessary directories exist
-            mkdir -p /home/${{ secrets.AWS_EC2_USER }}/app/server/files
-            chmod -R 755 /home/${{ secrets.AWS_EC2_USER }}/app/server/files
-
-            # Start the app using Gunicorn (adjust as necessary for your setup)
             nohup gunicorn app.wsgi:application --bind 0.0.0.0:8000 --workers 4 &
           EOF
