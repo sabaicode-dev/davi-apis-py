@@ -22,6 +22,7 @@ load_dotenv(dotenv_path=dotenv_path_dev)
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
 file_base_url = os.getenv("BASE_URL_FILE")
 
+print("Starting upload file", file_server_path_file, file_base_url)
 
 def get_delimiter(file_path, num_lines=5):
     try:
