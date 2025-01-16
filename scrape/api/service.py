@@ -15,7 +15,7 @@ from project.models import Project
 dotenv_path_dev = '.env'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
-file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
+file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE","/home/ubuntu/app/server/files/")
 if not os.path.exists(file_server_path_file):
     raise FileNotFoundError(f"Directory {file_server_path_file} does not exist.")
 

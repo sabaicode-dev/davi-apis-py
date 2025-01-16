@@ -1,0 +1,3 @@
+_id,project_id,filename,file,size,type,created_at,uuid,is_original,is_deleted,is_sample,original_file_id
+67888a4f185b229c5307cd20,67888a24185b229c5307cd1e,files_0fd89c00726b440499819e4e29746815.csv,files_0fd89c00726b440499819e4e29746815.csv,2,csv,2025-01-16 04:25:51.197,f376f531-93e3-494b-b241-3f11fa3f217b,True,False,False,
+67888a8d185b229c5307cd2d,67888a24185b229c5307cd1e,Employee data.csv,Employee data.csv,25684,csv,2025-01-16 04:26:53.018,16016586-ec15-42f6-9d0d-edbf074cb7f9,True,False,False,
