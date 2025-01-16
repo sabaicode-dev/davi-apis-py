@@ -16,7 +16,7 @@ import os
 import utils.file_util as file_utile
 from django.http import HttpResponse
 import re
-dotenv_path_dev = '.env.state'
+dotenv_path_dev = '.env.stage'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
