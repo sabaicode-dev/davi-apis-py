@@ -12,7 +12,6 @@ import chardet
 from bson import ObjectId
 from project.models import Project
 
-# Load environment variables
 # Load environment file
 dotenv_path = '.env.stage'
 load_dotenv(dotenv_path=dotenv_path)

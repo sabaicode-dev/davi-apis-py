@@ -2,6 +2,7 @@
 
 
 import os
+import platform
 import uuid
 from dotenv import load_dotenv
 import pandas as pd
@@ -16,11 +17,29 @@ import os
 import utils.file_util as file_utile
 from django.http import HttpResponse
 import re
-dotenv_path_dev = '.env.stage'
-load_dotenv(dotenv_path=dotenv_path_dev)
+
+dotenv_path = '.env.stage'
+load_dotenv(dotenv_path=dotenv_path)
 
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
 file_base_url = os.getenv("BASE_URL_FILE")
+
+# Debugging: Log the loaded paths
+print(f"Before adjustment: FILE_SERVER_PATH_FILE={file_server_path_file}")
+
+if platform.system() == "Windows":
+    print("Running on Windows.")
+else:
+    print("Running on Linux.")
+    # Only adjust if the loaded path contains Windows-style elements
+    if "D://" in file_server_path_file:
+        file_server_path_file = file_server_path_file.replace("D://SabaiCode//Project//davi-apis//", "/home/ubuntu/app/")
+
+# Debugging: Log the adjusted path
+print(f"After adjustment: FILE_SERVER_PATH_FILE={file_server_path_file}")
+
+if not os.path.exists(file_server_path_file):
+    raise FileNotFoundError(f"Directory {file_server_path_file} does not exist.")
 
 print("Starting upload file", file_server_path_file, file_base_url)
 
