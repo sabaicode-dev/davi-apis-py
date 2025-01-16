@@ -16,11 +16,12 @@ import os
 import utils.file_util as file_utile
 from django.http import HttpResponse
 import re
-dotenv_path_dev = '.env'
+dotenv_path_dev = '.env.state'
 load_dotenv(dotenv_path=dotenv_path_dev)
 
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
 file_base_url = os.getenv("BASE_URL_FILE")
+
 
 def get_delimiter(file_path, num_lines=5):
     try:

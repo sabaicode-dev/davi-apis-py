@@ -18,7 +18,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from the .env.stage file
-dotenv_path = os.path.join(BASE_DIR, '.env.development')
+dotenv_path = os.path.join(BASE_DIR, '.env.stage')
 load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
