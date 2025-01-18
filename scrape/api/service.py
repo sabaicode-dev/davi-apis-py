@@ -19,6 +19,7 @@ file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE","/home/ubuntu/app/serv
 if not os.path.exists(file_server_path_file):
     raise FileNotFoundError(f"Directory {file_server_path_file} does not exist.")
 
+print("Environment path", file_server_path_file)
 
 def get_file_extension(filename):
     _, extension = os.path.splitext(filename)
