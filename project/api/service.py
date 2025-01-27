@@ -1,6 +1,5 @@
 from bson import ObjectId
 from project.models import Project
-from django.core.exceptions import ObjectDoesNotExist
 import logging
 from django.utils import timezone
 from django.db.models import F
