@@ -6,6 +6,7 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from cleansing.api.service import data_cleansing, process_cleansing
 from metafile.api.services.metadata_extractor import MetadataExtractor
+from pagination.pagination import Pagination
 from utils.file_util import file_server_path_file
 from metafile.api.services.file_loader import FileHandler
 from metafile.api.service import MetadataService
@@ -15,6 +16,7 @@ import uuid
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def convert_object_ids(data):
     """
@@ -46,6 +48,7 @@ def serialize_metadata(data):
         return str(data)
     return data
 
+
 def is_valid_object_id(value):
     """Check if a string is a valid MongoDB ObjectId."""
     try:
@@ -54,97 +57,153 @@ def is_valid_object_id(value):
     except Exception:
         return False
 
-class FileUploadFindInaccurateDataView(APIView):
+
+class FileAccuracySummaryView(APIView):
     """
-    Simplified approach to analyze the file for missing rows, duplicates, and outliers.
+    Returns summary info about missing rows, duplicates, and outliers
+    without returning the entire list of records.
     """
+
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         project_id = kwargs.get("project_id")
-        file_identifier = kwargs.get("file_identifier")  # This is the new identifier
+        file_identifier = kwargs.get("file_identifier")
 
-        # MongoDB connection
-        client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
-        db = client[settings.DATABASES['default']['NAME']]
+        client = MongoClient(settings.DATABASES["default"]["CLIENT"]["host"])
+        db = client[settings.DATABASES["default"]["NAME"]]
 
         try:
+            # 1) Retrieve the file record
             file = None
-
-            # Check if file_identifier is a valid ObjectId
-            if self.is_valid_object_id(file_identifier):
-                print(file_identifier)
-                file = db.files.find_one({"_id": ObjectId(file_identifier), "is_deleted": False})
-
-            if not file:  # If not found, fall back to finding by filename
-                file = db.files.find_one({"filename": file_identifier, "is_deleted": False})
-
-            if not file:  # Finally fallback to the latest file by project_id
+            if is_valid_object_id(file_identifier):
+                file = db.files.find_one(
+                    {"_id": ObjectId(file_identifier), "is_deleted": False}
+                )
+            if not file:
+                file = db.files.find_one(
+                    {"filename": file_identifier, "is_deleted": False}
+                )
+            if not file:
                 file = db.files.find_one(
                     {"project_id": project_id, "is_deleted": False},
-                    sort=[("created_at", -1)],  # Pick the most recent file
+                    sort=[("created_at", -1)],
                 )
 
             if not file:
-                return Response({"error": "File not found in database."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "File not found in database."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-            # File found, proceed with cleansing
+            # 2) Perform data cleansing to identify issues
             result = data_cleansing(file["filename"])
-
             if "error" in result:
                 return Response(
-                    {
-                        "error": result["error"],
-                        "suggestion": "Ensure the file exists and has a valid structure.",
-                    },
+                    {"error": result["error"], "suggestion": "Check file structure."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Extract counts for missing rows, duplicate rows, and outliers
-            missing_rows_count = len(result.get("missing_rows", []))
-            duplicate_rows_count = len(result.get("duplicate_rows", []))
-            outliers_count = len(result.get("outliers", {}).get("educ", []))
+            # 3) Extract the counts
+            missing_rows = result.get("missing_rows", [])
+            duplicate_rows = result.get("duplicate_rows", [])
+            outliers = result.get("outliers", {})
 
-            # Add the counts to the response result
-            result["missing_rows_count"] = missing_rows_count
-            result["duplicate_rows_count"] = duplicate_rows_count
-            result["outliers_count"] = outliers_count
+            summary_data = {
+                "missing_rows_count": len(missing_rows),
+                "duplicate_rows_count": len(duplicate_rows),
+                "outliers_count": len(outliers.get("educ", [])),
+            }
 
-            return Response(result, status=status.HTTP_200_OK)
+            return Response(summary_data, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
+            logger.error(f"Unexpected error in summary: {str(e)}")
             return Response(
-                {"error": "An unexpected error occurred. Please try again later."},
+                {"error": "An unexpected error occurred."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         finally:
             client.close()
 
-    def is_valid_object_id(self, value):
-        """Check if a string is a valid MongoDB ObjectId."""
+
+class FileAccuracyDetailView(APIView):
+    """
+    Returns the details of missing rows, duplicates, and outliers
+    with pagination for the missing rows (as an example).
+    """
+
+    permission_classes = [permissions.AllowAny]
+    pagination_class = Pagination  # or whichever paginator you prefer
+
+    def get(self, request, *args, **kwargs):
+        project_id = kwargs.get("project_id")
+        file_identifier = kwargs.get("file_identifier")
+
+        client = MongoClient(settings.DATABASES["default"]["CLIENT"]["host"])
+        db = client[settings.DATABASES["default"]["NAME"]]
+
         try:
-            ObjectId(value)
-            return True
-        except Exception:
-            return False
-        
-    def get_file(self, db, project_id, file_identifier):
-        """
-        Retrieve a file from the database based on multiple identifiers.
-        """
-        if is_valid_object_id(file_identifier):
-            file = db.files.find_one({"_id": ObjectId(file_identifier), "is_deleted": False})
-            if file:
-                return file
+            # 1) Retrieve the file record
+            file = None
+            if is_valid_object_id(file_identifier):
+                file = db.files.find_one(
+                    {"_id": ObjectId(file_identifier), "is_deleted": False}
+                )
+            if not file:
+                file = db.files.find_one(
+                    {"filename": file_identifier, "is_deleted": False}
+                )
+            if not file:
+                file = db.files.find_one(
+                    {"project_id": project_id, "is_deleted": False},
+                    sort=[("created_at", -1)],
+                )
 
-        file = db.files.find_one({"filename": file_identifier, "is_deleted": False})
-        if file:
-            return file
+            if not file:
+                return Response(
+                    {"error": "File not found in database."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        return db.files.find_one(
-            {"project_id": project_id, "is_deleted": False},
-            sort=[("created_at", -1)],
-        )
+            # 2) Perform data cleansing
+            result = data_cleansing(file["filename"])
+            if "error" in result:
+                return Response(
+                    {"error": result["error"], "suggestion": "Check file structure."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            missing_rows = result.get("missing_rows", [])
+            duplicate_rows = result.get("duplicate_rows", [])
+            outliers = result.get("outliers", {})
+
+            # 3) Paginate missing_rows
+            paginator = self.pagination_class()
+            paginated_missing_rows = paginator.paginate_queryset(
+                missing_rows, request, view=self
+            )
+
+            # 4) Prepare your response data
+            response_data = {
+                # Paginated missing rows
+                "missing_rows": paginated_missing_rows,
+                # Duplicates and outliers are returned in full (you can paginate them similarly)
+                "duplicate_rows": duplicate_rows,
+                "outliers": outliers,
+            }
+
+            # 5) Return a paginated response
+            return paginator.get_paginated_response(response_data)
+
+        except Exception as e:
+            logger.error(f"Unexpected error in detail view: {str(e)}")
+            return Response(
+                {"error": "An unexpected error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        finally:
+            client.close()
+
 
 class ProcessCleaningFile(APIView):
     def post(self, request, *args, **kwargs):
@@ -152,8 +211,8 @@ class ProcessCleaningFile(APIView):
         file_identifier = kwargs.get("file_identifier")
 
         # MongoDB connection
-        client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
-        db = client[settings.DATABASES['default']['NAME']]
+        client = MongoClient(settings.DATABASES["default"]["CLIENT"]["host"])
+        db = client[settings.DATABASES["default"]["NAME"]]
 
         response_data = {}  # Initialize response data
 
@@ -161,14 +220,15 @@ class ProcessCleaningFile(APIView):
             # Find the file
             file = self._get_file(db, project_id, file_identifier)
             if not file:
-                return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "File not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
             # Perform data cleansing
             try:
-                cleansing_result = process_cleansing(file["filename"], [
-                    "delete_missing_row",
-                    "delete_duplicate_row"
-                ])
+                cleansing_result = process_cleansing(
+                    file["filename"], ["delete_missing_row", "delete_duplicate_row"]
+                )
                 if "error" in cleansing_result:
                     response_data["cleansing_error"] = cleansing_result["error"]
                 else:
@@ -181,7 +241,7 @@ class ProcessCleaningFile(APIView):
                         "type": "csv",
                         "is_original": False,
                         "original_file": str(file.get("_id")),
-                        "created_at": datetime.utcnow()
+                        "created_at": datetime.utcnow(),
                     }
 
                     # Check if metadata for this file_id already exists
@@ -190,25 +250,36 @@ class ProcessCleaningFile(APIView):
                         # Update existing metadata if it exists
                         db.metadata.update_one(
                             {"file_id": file["_id"]},
-                            {"$set": {"metadata": cleansed_file_data, "updated_at": datetime.utcnow()}}
+                            {
+                                "$set": {
+                                    "metadata": cleansed_file_data,
+                                    "updated_at": datetime.utcnow(),
+                                }
+                            },
                         )
                         response_data["metadata_updated"] = True
                     else:
                         # Insert cleansed file into MongoDB if no metadata exists
-                        inserted_id = db.files.insert_one(cleansed_file_data).inserted_id
+                        inserted_id = db.files.insert_one(
+                            cleansed_file_data
+                        ).inserted_id
                         cleansed_file_data["_id"] = str(inserted_id)
 
                         response_data.update(cleansed_file_data)
-                        response_data["cleansing_message"] = cleansing_result.get("message", "Cleansing completed")
+                        response_data["cleansing_message"] = cleansing_result.get(
+                            "message", "Cleansing completed"
+                        )
 
             except Exception as cleansing_error:
                 response_data["cleansing_error"] = str(cleansing_error)
-    
+
             # Correct the file path when loading the dataset
             try:
                 if "cleansing_error" not in response_data:
                     file_handler = FileHandler(server_path=file_server_path_file)
-                    cleansed_file_path = f"{cleansing_result['filename']}"  # Fix path here
+                    cleansed_file_path = (
+                        f"{cleansing_result['filename']}"  # Fix path here
+                    )
                     data = file_handler.load_dataset(cleansed_file_path)
 
                     # Extract metadata
@@ -223,7 +294,7 @@ class ProcessCleaningFile(APIView):
                     metadata_stored = metadata_service.store_metadata(
                         file_id=response_data["_id"],
                         project_id=project_id,
-                        metadata=cleaned_metadata
+                        metadata=cleaned_metadata,
                     )
 
                     response_data["metadata_stored"] = bool(metadata_stored)
@@ -247,7 +318,9 @@ class ProcessCleaningFile(APIView):
         Retrieve a file from the database based on multiple identifiers.
         """
         if is_valid_object_id(file_identifier):
-            file = db.files.find_one({"_id": ObjectId(file_identifier), "is_deleted": False})
+            file = db.files.find_one(
+                {"_id": ObjectId(file_identifier), "is_deleted": False}
+            )
             if file:
                 return file
 

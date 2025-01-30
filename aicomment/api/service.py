@@ -90,7 +90,6 @@ def generate_mongo_query_from_prompt(prompt: str, headers: list) -> str:
             return "Error generating query from AI."
 
     except Exception as e:
-        print(f"Error with OpenAI API: {e}")
         return f"Error: {str(e)}"
 
 
@@ -120,7 +119,6 @@ def execute_mongo_query(query: dict):
         return result_list
 
     except Exception as e:
-        print(f"Error executing query: {e}")
         return f"Error executing query: {str(e)}"
 
 

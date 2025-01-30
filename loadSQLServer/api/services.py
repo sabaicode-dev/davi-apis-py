@@ -25,7 +25,6 @@ def fetch_data_from_database(server, database, username, password, table_name=No
             f"UID={username};"
             f"PWD={password}"
         )
-        print("Database connection successful!")
 
         # Determine the query
         query = sql_query if sql_query else f"SELECT * FROM {table_name}"
@@ -35,14 +34,12 @@ def fetch_data_from_database(server, database, username, password, table_name=No
         return data
 
     except pyodbc.Error as e:
-        print(f"Database connection/query execution failed: {e}")
         raise Exception(f"Database error: {e}")
 
     finally:
         # Close connection
         if 'connection' in locals():
             connection.close()
-            print("Database connection closed.")
 
 
 def save_table_data_to_csv(data, table_name, file_server_path_file):

@@ -36,7 +36,6 @@ def get_delimiter(file_path, num_lines=5):
     except FileNotFoundError:
         return None
     except Exception as e:
-        print(f"An error occurred: {e}")
         return None
 
 def get_file_extension(filename):
@@ -277,7 +276,6 @@ def load_datasetHeader(filename):
                         pd.to_datetime(data[col])
                         # If successful, add to the list
                         date_columns.append(col)
-                        print(col)
                     except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
                         # If conversion fails, it's not a date column
                         continue
@@ -310,7 +308,6 @@ def remove_file(filename):
             os.remove(path_file)  # File removal may raise an exception if the file is locked or missing
             return True
         except OSError as e:
-            print(f"Error removing file: {e}")
             return False
     return False
 
@@ -326,7 +323,6 @@ def download_file(filename):
                     return response
             except Exception as e:
                 # Log or handle error if file read fails
-                print(f"Error reading file {filename}: {e}")
                 return None
     else:
         print(f"File not found in the database: {filename}")

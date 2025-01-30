@@ -5,8 +5,12 @@ from bson import ObjectId
 
 
 class FileResponeSerializer(serializers.ModelSerializer):
-    project = serializers.CharField(write_only=True)  # Accept project ID as a string for validation
-    project_id = serializers.SerializerMethodField(read_only=True)  # Return project ID as a string in response
+    project = serializers.CharField(
+        write_only=True
+    )  # Accept project ID as a string for validation
+    project_id = serializers.SerializerMethodField(
+        read_only=True
+    )  # Return project ID as a string in response
 
     class Meta:
         model = File
@@ -35,8 +39,8 @@ class FileResponeSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Ensure MongoDB ObjectId is serialized as a string."""
         representation = super().to_representation(instance)
-        if isinstance(representation.get("_id"), ObjectId):
-            representation["_id"] = str(representation["_id"])
+        if isinstance(instance._id, ObjectId):
+            representation["_id"] = str(instance._id)
         return representation
 
 
@@ -48,5 +52,6 @@ class UpdateFileSerializer(serializers.ModelSerializer):
 
 class FileQuerySerializer(serializers.Serializer):
     """Serializer for querying files by parameters."""
+
     filename = serializers.CharField(required=False, allow_blank=True)
     type = serializers.CharField(required=False, allow_blank=True)

@@ -19,7 +19,6 @@ class FileHandler:
                 sample = f.read(1024)
                 return ';' if sample.count(';') > sample.count(',') else ','
         except Exception as e:
-            print(f"Error detecting separator: {e}")
             return ','  # Default to comma if detection fails
 
     def upload_file_to_server(self, file):
@@ -54,7 +53,6 @@ class FileHandler:
             
             return reader
         except Exception as e:
-            print(f"Error loading dataset: {e}")
             raise e
 
     # def load_dataset(self, file_name, chunksize=1000):

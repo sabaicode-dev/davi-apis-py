@@ -38,7 +38,6 @@ def get_delimiter(file_path, num_lines=5):
     except FileNotFoundError:
         return None
     except Exception as e:
-        print(f"An error occurred: {e}")
         return None
 
 def detect_delimiter(file_path):
@@ -49,7 +48,6 @@ def detect_delimiter(file_path):
 
 def remove_file(filename):
     path_file = file_server_path_file+filename
-    print(F"File path in remove file {path_file}")
     if find_file_by_filename(filename):
         os.remove(path_file)
         return True
@@ -123,7 +121,6 @@ def remove_file_server(filename):
         os.remove(path_file)
         return True
     else:
-        print(f"File not found: {path_file}")
         return False
 
 
@@ -148,12 +145,10 @@ def save_file(list_of_files, project_id=None):
     # Process each file
     for filename in list_of_files:
         try:
-            print(f"Processing file: {filename}")
             file_path = os.path.join(file_server_path_file, filename)
 
             # Ensure the file exists
             if not os.path.isfile(file_path):
-                print(f"File does not exist: {file_path}")
                 message.append({"message": f"File {filename} does not exist on the server."})
                 continue
 
@@ -169,7 +164,6 @@ def save_file(list_of_files, project_id=None):
 
             # Save file object to database
             file.save()
-            print(f"File saved successfully: {file}")
 
             # Add the saved file details to confirmed_files
             confirmed_file_data = model_to_dict(file)  # Convert to dict for response
@@ -244,10 +238,8 @@ def load_dataset(filename, size=0):
         elif type_file == 'xlsx':
             data = pd.read_excel(file_path)
     except Exception as e:
-        print(f"Error loading dataset: {e}")
         return None
     except Exception as e:
-        print(f"Error loading dataset: {e}")
         return None
 
 

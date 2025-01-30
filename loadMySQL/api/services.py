@@ -19,7 +19,6 @@ def connect_to_mysql(host, user, password, database):
         if connection.is_connected():
             return connection
     except Error as e:
-        print(f"Error while connecting to MySQL: {e}")
         return None
 
 

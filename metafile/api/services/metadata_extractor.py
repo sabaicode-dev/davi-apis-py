@@ -84,7 +84,6 @@ class MetadataExtractor:
   #       self.string_stats[col] = Counter()
 
   def initialize_columns(self, df):
-    print('Initializing columns...')
     self.columns = df.columns.tolist()
     
     for idx, col in enumerate(self.columns):

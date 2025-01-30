@@ -50,7 +50,6 @@ class GenerateMongoQueryView(APIView):
 
         except Exception as e:
             # Handle any unexpected errors
-            print(f"Unexpected error: {e}")
             return Response(
                 {"error": "An unexpected error occurred during query generation."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

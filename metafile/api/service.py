@@ -112,11 +112,9 @@ class MetadataService:
     def get_metadata_by_id(self, metadata_id):
         try:
             if not ObjectId.is_valid(metadata_id):
-                logger.debug("Invalid metadata_id format: %s", metadata_id)
                 return None  # Invalid format
 
             object_id = ObjectId(metadata_id)
-            logger.debug("Searching for metadata with _id: %s", object_id)
 
             # Retrieve metadata from the database
             metadata = self.db.metadata.find_one({"_id": object_id})
@@ -124,10 +122,8 @@ class MetadataService:
             if metadata:
                 # Convert ObjectId to string for JSON serialization
                 metadata['_id'] = str(metadata['_id'])
-                logger.debug("Metadata found: %s", metadata)
                 return metadata  # This will be a dict with _id as string
             else:
-                logger.debug("No metadata found with _id: %s", object_id)
                 return None
         except Exception as e:
             logger.exception("Error retrieving metadata by ID")

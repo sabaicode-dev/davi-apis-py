@@ -16,9 +16,6 @@ class FileUploadView(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            # Debugging: Log request data
-            print("Request Data:", request.data)
-
             # Validate project_id
             project_id = request.data.get('project_id')
             if not project_id:
@@ -39,7 +36,6 @@ class FileUploadView(APIView):
             filename = f"{uuid.uuid4().hex}{os.path.splitext(uploaded_file.name)[1]}"
             file_path = os.path.join(file_server_path_file, filename)
 
-            print(f"Saving file to: {file_path}")  # Debugging statement
 
             with open(file_path, 'wb+') as destination:
                 for chunk in uploaded_file.chunks():
@@ -78,7 +74,6 @@ class FileUploadView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            print(f"Error during file upload: {str(e)}")  # Debugging statement
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def generate_and_store_metadata(self, file_path, file_id, project_id):
@@ -107,7 +102,6 @@ class FileUploadView(APIView):
                 "metadata_id": metadata_stored,
             }
         except Exception as e:
-            print("Error during metadata generation:", str(e))  # Debugging statement
             return {"metadata_error": str(e)}
 
 class FileHandler:
@@ -123,7 +117,6 @@ class FileHandler:
                 sample = f.read(1024)
                 return ';' if sample.count(';') > sample.count(',') else ','
         except Exception as e:
-            print(f"Error detecting separator: {e}")
             return ','  # Default to comma if detection fails
 
     def load_dataset(self, file_name, chunksize=1000):
@@ -144,5 +137,4 @@ class FileHandler:
             
             return reader
         except Exception as e:
-            print(f"Error loading dataset: {e}")
             raise e

@@ -28,7 +28,6 @@ def handle_uploaded_file(f):
             for chunk in f.chunks():
                 destination.write(chunk)
     except Exception as e:
-        print('error: ', e)
         return {"error": f"Failed to save file: {str(e)}"}
 
     return file_name

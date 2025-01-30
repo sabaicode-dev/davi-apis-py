@@ -52,20 +52,15 @@ class ProjectService:
         """
         try:
             if not ObjectId.is_valid(project_id):
-                logger.debug("Invalid project_id format: %s", project_id)
                 return None  # Invalid format
 
             # Convert project_id to ObjectId
             object_id = ObjectId(project_id)
-            logger.debug("Searching for project with _id: %s", object_id)
 
             # Exclude projects with a non-null deleted_at field
             project = Project.objects.filter(_id=object_id, deleted_at__isnull=True).first()
 
-            if project:
-                logger.debug("Project found: %s", project)
-            else:
-                logger.debug("No project found with _id: %s", object_id)
+        
             return project
         except Exception as e:
             logger.exception("Error retrieving project by ID")

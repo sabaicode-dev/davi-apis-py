@@ -8,7 +8,6 @@ load_dotenv(dotenv_path=dotenv_path_dev)
 
 # Fetch the OpenAI API key from the environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
-print("OpenAI API key:", openai_api_key)
 
 def generate_description(columns: list, chart_type: str) -> str:
     """
@@ -62,6 +61,4 @@ def generate_description(columns: list, chart_type: str) -> str:
             return f"Error in API call: {response.status_code} - {response.text}"
 
     except Exception as e:
-        # Handle unexpected errors
-        print(f"Error generating description: {e}")
         return "Error generating description. Please try again later."

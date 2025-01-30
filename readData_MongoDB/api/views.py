@@ -42,7 +42,6 @@ class LoadMongoDataView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
 
-                logger.debug(f"Databases fetched: {databases}")
                 return Response({
                     "message": "Databases fetched successfully!",
                     "total_databases": len(databases),
@@ -62,7 +61,6 @@ class LoadMongoDataView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
 
-                logger.debug(f"Databases fetched: {result}")
                 return Response({
                     "total_databases": len(result),
                     "data": result
