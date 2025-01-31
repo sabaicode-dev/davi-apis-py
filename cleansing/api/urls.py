@@ -16,7 +16,7 @@ urlpatterns = [
         name="file-accuracy-detail",
     ),
     path(
-        "project/<str:project_id>/file/<str:file_identifier>/processing-cleaning-file/",
+        "projects/<str:project_id>/files/<str:file_identifier>/cleaning/",
         ProcessCleaningFile.as_view(),
         name="processing-cleaning",
     ),

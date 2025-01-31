@@ -49,10 +49,8 @@ Follow these steps to set up the project locally:
 3. Install Dependencies:
    ```bash
    Copy
-   pip install -r requirements.txt
-   Set Up the Database:
-   If using SQLite, no additional setup is required.
-   For PostgreSQL/MySQL, create a database and update the DATABASES setting in settings.py.
+   pip install -r requirements.txt [install dependency in requirements.txt]
+   pip freeze > requirements.txt [update a new install dependency to requirements.txt]
 
 4. Run Migrations:
    ```bash

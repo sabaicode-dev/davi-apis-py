@@ -1,9 +1,6 @@
 # visualization/api/service.py
-import importlib
+from io import BytesIO
 from venv import logger
-from dotenv import load_dotenv
-from django.conf import settings
-import seaborn as sns
 import csv
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -13,25 +10,19 @@ import matplotlib
 import uuid
 import re
 import plotly.graph_objects as go
-import plotly.express as px
 import os
-import uuid
 import geopandas as gpd
-import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 import matplotlib.colors as mcolors
+from utils.s3 import upload_to_s3
 
 matplotlib.use("Agg")
 
-dotenv_path_dev = ".env"
-load_dotenv(dotenv_path=dotenv_path_dev)
-color_graph = "#0346A5"
 file_server_path_file = os.getenv("FILE_SERVER_PATH_FILE")
-file_server_path_image = os.getenv("FILE_SERVER_PATH_IMAGE")
-file_base_url = os.getenv("BASE_URL_FILE")
 
+# CHART SETTINGS
+GRAPH_COLOR = "#0346A5"
 ALLOWED_EXTENSIONS_FILE = [".csv", ".json", ".txt", ".xlsx"]
-
 valid_chart_types = {
     "line_chart": (True, True),  # Requires both labels and numbers.
     "histogram": (False, True),  # Requires only numbers.
@@ -149,11 +140,9 @@ def is_number(data, column):
         return False
 
 
-def generateBASEURL(str_url):
-    return file_base_url + str_url + "/"
-
-
-def perform_visualize(filename, chart_name="bar_chart", x_axis=[None], y_axis=None):
+def perform_visualize(
+    filename, chart_name="bar_chart", x_axis=[None], y_axis=None, folder=""
+):
     # Ensure the filename is correct
     data = load_dataset(filename)
 
@@ -162,45 +151,45 @@ def perform_visualize(filename, chart_name="bar_chart", x_axis=[None], y_axis=No
 
     # Based on the chart name, call the respective function
     if chart_name == "line_chart":
-        return generate_line_chart(data, x_axis, y_axis)
+        return generate_line_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "bar_chart":
-        return generate_bar_chart(data, x_axis, y_axis)
+        return generate_bar_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "pie_chart":
-        return generate_pie_chart(data, x_axis)
+        return generate_pie_chart(data, x_axis, folder)
 
     elif chart_name == "scatter_plot":
-        return generate_scatter_plot(data, x_axis, y_axis)
+        return generate_scatter_plot(data, x_axis, y_axis, folder)
 
     elif chart_name == "histogram":
-        return generate_histogram(data, x_axis, y_axis)
+        return generate_histogram(data, x_axis, y_axis, folder)
 
     elif chart_name == "area_chart":
-        return generate_area_chart(data, x_axis, y_axis)
+        return generate_area_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "bubble_chart":
-        return generate_bubble_chart(data, x_axis, y_axis)
+        return generate_bubble_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "column_chart":
-        return generate_column_chart(data, x_axis, y_axis)
+        return generate_column_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "map_chart":
-        return generate_map_chart(data, x_axis, y_axis)
+        return generate_map_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "donut_chart":
-        return generate_donut_chart(data, x_axis)
+        return generate_donut_chart(data, x_axis, folder)
 
     elif chart_name == "heatmap":
-        return generate_heatmap_chart(data, x_axis, y_axis)
+        return generate_heatmap_chart(data, x_axis, y_axis, folder)
 
     elif chart_name == "waterfall":
-        return generate_waterfall(data, x_axis, y_axis)
+        return generate_waterfall(data, x_axis, y_axis, folder)
 
     return None
 
 
-def generate_waterfall(data, x_axis, y_axis):
+def generate_waterfall(data, x_axis, y_axis, folder=""):
     if x_axis and y_axis:
         counts = find_sum(data, x_axis, y_axis).head(10)
 
@@ -219,88 +208,65 @@ def generate_waterfall(data, x_axis, y_axis):
         fig.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            title=str(y_axis) + " and " + str(x_axis),
+            title=f"{y_axis} and {x_axis}",
             showlegend=True,
         )
 
-        # Check if kaleido is installed
-        if importlib.util.find_spec("kaleido") is None:
-            raise ImportError(
-                "The 'kaleido' package is required for exporting images. Install it using 'pip install -U kaleido'."
-            )
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        fig.write_image(buffer, format="png")
+        buffer.seek(0)
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        fig.write_image(file_server_path_image + filename_visualize)
-
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_column_chart(data, x_axis, y_axis):
+def generate_column_chart(data, x_axis, y_axis, folder=""):
     if x_axis:
-        plt.figure(figsize=(15, 8))  # Increased figure size
-        # for x in x_axis:
+        plt.figure(figsize=(15, 8))
         counts = find_sum(data, x_axis, y_axis).head(10)
-        plt.bar(counts[str(x_axis)], counts["sum"], color=color_graph, label=x_axis)
-        plt.xlabel(str(x_axis))  # Set generic x-label
+        plt.bar(counts[str(x_axis)], counts["sum"], color=GRAPH_COLOR, label=x_axis)
+        plt.xlabel(str(x_axis))
         plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
-        plt.legend()  # Add legend if multiple lines
+        plt.legend()
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_bubble_chart(data, x_axis, y_axis):
+def generate_bubble_chart(data, x_axis, y_axis, folder=""):
     if x_axis:
-        # Create a new figure
-        # Create a new figure
         plt.figure(figsize=(15, 8))
-
-        # Get the aggregated data
-
-        # Get the aggregated data
         counts = find_sum(data, x_axis, y_axis)
 
         # Normalize bubble size and clip it to avoid extreme sizes
-        bubble_size = (
-            counts["sum"] * 10
-        )  # Scale the bubble size (adjust multiplier as needed)
-        bubble_size = np.clip(
-            bubble_size, 50, 2000
-        )  # Avoid very small or very large bubbles
-
-        # Normalize for color scale based on 'sum'
-        norm = plt.Normalize(min(counts["sum"]), max(counts["sum"]))
-        colors = plt.cm.viridis(norm(counts["sum"]))  # Using 'viridis' colormap
-
-        # Create the scatter plot (Bubble chart)
-        plt.scatter(
-            counts[str(x_axis)],
-            counts["sum"],
-            s=bubble_size,  # Size of the bubble
-            marker="o",
-            c=colors,  # Color based on 'sum'
-            label=x_axis,
-        )
-
-        # Add labels and title
-
-        # Normalize bubble size and clip it to avoid extreme sizes
-        bubble_size = (
-            counts["sum"] * 10
-        )  # Scale the bubble size (adjust multiplier as needed)
+        bubble_size = counts["sum"] * 10  # Scale the bubble size
         bubble_size = np.clip(
             bubble_size, 50, 2000
         )  # Avoid very small or very large bubbles
@@ -322,7 +288,6 @@ def generate_bubble_chart(data, x_axis, y_axis):
         # Add labels and title
         plt.xlabel(str(x_axis))
         plt.ylabel("sum of " + str(y_axis))
-        plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
 
         # Adjust y-axis limits dynamically based on data
@@ -331,47 +296,37 @@ def generate_bubble_chart(data, x_axis, y_axis):
         # Show legend
         plt.legend()
 
-        # Save the plot to file
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        # Adjust y-axis limits dynamically based on data
-        plt.ylim([min(counts["sum"]) * 0.9, max(counts["sum"]) * 1.1])
-
-        # Show legend
-        plt.legend()
-
-        # Save the plot to file
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
-
-        # Return the image URL
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
-
-        # Return the image URL
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_heatmap_chart(data, x_axis, y_axis):
+def generate_heatmap_chart(data, x_axis, y_axis, folder=""):
     if x_axis and y_axis:
         # Filter out rows where either column contains non-numeric values
-        data[x_axis] = pd.to_numeric(
-            data[x_axis], errors="coerce"
-        )  # Coerce non-numeric to NaN
-        data[y_axis] = pd.to_numeric(
-            data[y_axis], errors="coerce"
-        )  # Coerce non-numeric to NaN
+        data[x_axis] = pd.to_numeric(data[x_axis], errors="coerce")
+        data[y_axis] = pd.to_numeric(data[y_axis], errors="coerce")
 
         # Drop rows with NaN values after coercion
         data_clean = data.dropna(subset=[x_axis, y_axis])
 
         # Create the heatmap
         plt.figure(figsize=(15, 15))
-        counts = find_sum(data_clean, x_axis, y_axis)
+        # counts = find_sum(data_clean, x_axis, y_axis)
         df = pd.concat(
             [data_clean[x_axis].astype(float), data_clean[y_axis].astype(float)], axis=1
         )
@@ -385,68 +340,84 @@ def generate_heatmap_chart(data, x_axis, y_axis):
         plt.title(f"{x_axis} and {y_axis}")
         plt.ylim([0, 15])
 
-        # Optionally, you can add a legend if you have multiple lines or categories
-        plt.legend()  # This might be unnecessary for a heatmap, unless you're plotting multiple series
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        # Save the image
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
-
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_area_chart(data, x_axis, y_axis):
+def generate_area_chart(data, x_axis, y_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(15, 8))
         plt.fill_between(
-            data[x_axis].head(10), data[y_axis].head(10), color=color_graph
+            data[x_axis].head(10), data[y_axis].head(10), color=GRAPH_COLOR
         )
         plt.xlabel(str(x_axis))
         plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_histogram(data, x_axis, y_axis=None):
+def generate_histogram(data, x_axis, y_axis=None, folder=""):
     if x_axis:
         plt.figure(figsize=(15, 8))
         data_to_plot = data[x_axis]
-        plt.hist(
-            data_to_plot, bins=15, color=color_graph, rwidth=10
-        )  # Set rwidth to 1.0
+        plt.hist(data_to_plot, bins=15, color=GRAPH_COLOR, rwidth=10)
 
-        plt.xlabel(x_axis)  # Set x-label
-        plt.ylabel("Frequency")  # Y-label represents the frequency
+        plt.xlabel(x_axis)
+        plt.ylabel("Frequency")
         plt.title(f"Histogram of {x_axis}")
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        plt.close()  # Close the current figure to avoid displaying it immediately
-
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_scatter_plot(data, x_axis, y_axis):
+def generate_scatter_plot(data, x_axis, y_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(15, 8))
         counts = find_sum(data, x_axis, y_axis)
@@ -455,26 +426,34 @@ def generate_scatter_plot(data, x_axis, y_axis):
             counts["sum"],
             marker="o",
             label=x_axis,
-            color=color_graph,
+            color=GRAPH_COLOR,
         )
 
-        plt.xlabel(str(x_axis))  # Set generic x-label
+        plt.xlabel(str(x_axis))
         plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
-        plt.legend()  # Add legend if multiple lines
+        plt.legend()
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
 
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_line_chart(data, x_axis, y_axis):
+def generate_line_chart(data, x_axis, y_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(15, 8))
         counts = find_sum(data, x_axis, y_axis)
@@ -483,40 +462,57 @@ def generate_line_chart(data, x_axis, y_axis):
             counts["sum"],
             marker="o",
             label=x_axis,
-            color=color_graph,
+            color=GRAPH_COLOR,
         )
         plt.xlabel(str(x_axis))
         plt.ylabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
         plt.legend()
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=False)
 
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_bar_chart(data, x_axis, y_axis):
+def generate_bar_chart(data, x_axis, y_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(15, 8))
         counts = find_sum(data, x_axis, y_axis).head(10)
-        plt.barh(counts[str(x_axis)], counts["sum"], color=color_graph, label=x_axis)
+        plt.barh(counts[str(x_axis)], counts["sum"], color=GRAPH_COLOR, label=x_axis)
         plt.ylabel(str(x_axis))
         plt.xlabel("sum of " + str(y_axis))
         plt.title(f"{x_axis} and {y_axis}")
         plt.legend()
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
 
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
@@ -554,7 +550,7 @@ def generate_card_KPI_NUMBER(data, aggregation, field):
         return None
 
 
-def generate_pie_chart(data, x_axis):
+def generate_pie_chart(data, x_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(8, 8))
         counts = find_sum_category(data, x_axis)
@@ -564,17 +560,26 @@ def generate_pie_chart(data, x_axis):
         plt.title(f"{x_axis}")
         plt.legend()
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
+
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_donut_chart(data, x_axis):
+def generate_donut_chart(data, x_axis, folder=""):
     if x_axis:
         plt.figure(figsize=(8, 8))
         counts = find_sum_category(data, x_axis)
@@ -593,17 +598,26 @@ def generate_donut_chart(data, x_axis):
         plt.title(f"{x_axis}")
         plt.legend()
 
-        filename_visualize = uuid.uuid4().hex + ".png"
-        plt.savefig(file_server_path_image + filename_visualize, transparent=True)
-        return {
-            "_id": str(uuid.uuid4().hex),
-            "img": generateBASEURL(filename_visualize),
-        }
+        # Save the plot to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", transparent=True)
+        buffer.seek(0)
+
+        # Upload the image to S3
+        try:
+            s3_url = upload_to_s3(buffer, folder=folder)
+            return {
+                "_id": str(uuid.uuid4().hex),
+                "img": s3_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload to S3: {e}")
+            return None
 
     return None
 
 
-def generate_map_chart(data, x_axis, y_axis):
+def generate_map_chart(data, x_axis, y_axis, folder=""):
     if not x_axis or not y_axis:
         return {"error": "Both x_axis and y_axis must be provided."}
 
@@ -661,23 +675,27 @@ def generate_map_chart(data, x_axis, y_axis):
     )
     ax.axis("off")
 
-    filename_visualize = f"{uuid.uuid4().hex}.png"
-    image_path = os.path.join(file_server_path_image, filename_visualize)
-    os.makedirs(os.path.dirname(image_path), exist_ok=True)
+    # Save the plot to a BytesIO object
+    buffer = BytesIO()
+    plt.savefig(buffer, format="png", transparent=True, dpi=300, bbox_inches="tight")
+    buffer.seek(0)
 
-    plt.savefig(image_path, transparent=True, dpi=300, bbox_inches="tight")
-    plt.close()
-
-    return {
-        "_id": str(uuid.uuid4().hex),
-        "img": generateBASEURL(filename_visualize),
-        "metadata": {
-            "x_axis": x_axis,
-            "y_axis": y_axis,
-            "description": f"This map highlights the distribution of {y_axis} across various {x_axis}.",
-            "total_countries": len(merged),
-        },
-    }
+    # Upload the image to S3
+    try:
+        s3_url = upload_to_s3(buffer, folder=folder)
+        return {
+            "_id": str(uuid.uuid4().hex),
+            "img": s3_url,
+            "metadata": {
+                "x_axis": x_axis,
+                "y_axis": y_axis,
+                "description": f"This map highlights the distribution of {y_axis} across various {x_axis}.",
+                "total_countries": len(merged),
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to upload to S3: {e}")
+        return None
 
 
 def find_location_column(df, column_name="Country"):
