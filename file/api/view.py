@@ -38,7 +38,7 @@ class ProjectFilesViewUpload(APIView):
                 {"error": "Project not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        files = project.files.all()
+        files = project.files.filter(is_deleted__in=[False, None])
         serializer = FileResponeSerializer(files, many=True)
         return Response(
             {
@@ -288,7 +288,7 @@ class FileDetailsViewDelete(APIView):
             # Proceed with file removal from storage
             if service.remove_file(file.filename):
                 logger.info(f"File {file.filename} removed from storage.")
-                # Mark the file as deleted in the database (actually delete it)
+                # Mark the file as deleted in the database
                 self._mark_file_as_deleted(file)
                 return Response(
                     {"message": "File deleted successfully."}, status=status.HTTP_200_OK
@@ -373,26 +373,24 @@ class FileDetailsViewDelete(APIView):
 
     def _mark_file_as_deleted(self, file):
         """
-        Marks the file as deleted in the database and removes the file record entirely.
+        Marks the file as deleted in the database by setting `is_deleted` to True.
         """
         try:
-            # Log the attempt to delete the file record from the database
+            # Log the attempt to mark the file as deleted
             logger.info(
-                f"Attempting to delete file {file.filename} with _id {file._id} from the database."
+                f"Attempting to mark file {file.filename} with _id {file._id} as deleted."
             )
 
-            # Delete the file record from the database
-            deleted_count, _ = File.objects.filter(_id=file._id).delete()
+            # Update the file's `is_deleted` field to True
+            file.is_deleted = True
+            file.save()  # Save the changes to the database
 
-            if deleted_count > 0:
-                logger.info(
-                    f"File {file.filename} successfully deleted from the database."
-                )
-            else:
-                logger.warning(f"File {file.filename} not found in the database.")
+            logger.info(
+                f"File {file.filename} successfully marked as deleted in the database."
+            )
         except Exception as e:
-            logger.error(f"Error deleting file from the database: {str(e)}")
-            raise Exception("Error deleting the file from the database.")
+            logger.error(f"Error marking file as deleted: {str(e)}")
+            raise Exception("Error marking the file as deleted.")
 
 
 # Download a file
