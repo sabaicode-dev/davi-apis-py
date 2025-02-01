@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class LoadmariadbConfig(AppConfig):
-    name = 'loadMariadb'
+    name = "connect_to_mariadb"

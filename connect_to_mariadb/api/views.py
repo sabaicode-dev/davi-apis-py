@@ -5,7 +5,6 @@ from rest_framework import status
 from dotenv import load_dotenv
 import os
 import logging
-import pymysql
 
 # Load environment variables
 dotenv_path_dev = '.env'

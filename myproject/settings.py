@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     "connect_to_mysql",
     "connect_to_sql_server",
     "connect_to_postgresql",
-    "loadMariadb",
+    "connect_to_mariadb",
     "notification_app",
 ]
 
