@@ -1,20 +1,23 @@
 import os
 import uuid
 
-from utils.load_env import FILE_LOCAL_SERVER_PATH
+FILE_SERVER_PATH_FILE = os.getenv("FILE_SERVER_PATH_FILE")
 
 
 def get_file_extension(filename):
-    return os.path.splitext(filename)[1].lower().replace('.', '')
+    return os.path.splitext(filename)[1].lower().replace(".", "")
+
 
 def handle_uploaded_file(f):
     # Generate unique filename and filepath
     original_name = str(f)
-    original_extension = get_file_extension(original_name)  # Returns 'csv', 'json', etc.
+    original_extension = get_file_extension(
+        original_name
+    )  # Returns 'csv', 'json', etc.
     dataset_id = f"{uuid.uuid4().hex}"
 
     # Create subdirectory based on file type
-    destination_dir = os.path.join(FILE_LOCAL_SERVER_PATH, original_extension)
+    destination_dir = os.path.join(FILE_SERVER_PATH_FILE, original_extension)
     os.makedirs(destination_dir, exist_ok=True)
 
     # Define full path for the file
@@ -24,7 +27,7 @@ def handle_uploaded_file(f):
 
     # Save the file
     try:
-        with open(file_path, 'wb+') as destination:
+        with open(file_path, "wb+") as destination:
             for chunk in f.chunks():
                 destination.write(chunk)
     except Exception as e:
