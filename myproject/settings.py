@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     "aigeneratedes",
     "connect_to_mongodb",
     "connect_to_mysql",
-    "loadSQLServer",
+    "connect_to_sql_server",
     "loadPostgresSQL",
     "loadMariadb",
     "notification_app",
