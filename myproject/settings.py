@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "metafile",
     "project",
     "visualization",
-    "image_visualize",
     "aigeneratedes",
     "connect_to_mongodb",
     "connect_to_mysql",

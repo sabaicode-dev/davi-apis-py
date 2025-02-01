@@ -49,7 +49,6 @@ urlpatterns = [
     path("metafile/", include("metafile.api.urls")),
     path("api/v1/", include("project.api.urls")),
     path("api/v1/", include("visualization.api.urls")),
-    path("api/v1/", include("image_visualize.api.urls")),
     path("api/v1/", include("aigeneratedes.api.urls")),
     path("api/v1/", include("connect_to_mongodb.api.urls")),
     path("api/v1/", include("connect_to_mysql.api.urls")),
