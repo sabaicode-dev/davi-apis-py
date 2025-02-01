@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     "connect_to_mongodb",
     "connect_to_mysql",
     "connect_to_sql_server",
-    "loadPostgresSQL",
+    "connect_to_postgresql",
     "loadMariadb",
     "notification_app",
 ]

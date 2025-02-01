@@ -53,8 +53,8 @@ urlpatterns = [
     path("api/v1/", include("connect_to_mongodb.api.urls")),
     path("api/v1/", include("connect_to_mysql.api.urls")),
     path("api/v1/", include("connect_to_sql_server.api.urls")),
+    path("api/v1/", include("connect_to_postgresql.api.urls")),
     path("api/v1/notifications/", include("notification_app.api.urls")),
-    path("loadPostgresSQL/api/v1/", include("loadPostgresSQL.api.urls")),
     path("loadMariadb/api/v1/", include("loadMariadb.api.urls")),
     # Swagger URLs
     path(

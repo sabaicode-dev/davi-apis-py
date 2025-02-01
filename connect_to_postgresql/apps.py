@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class LoadpostgressqlConfig(AppConfig):
-    name = 'loadPostgresSQL'
+    name = "connect_to_postgresql"
