@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class LoadmysqlConfig(AppConfig):
-    name = 'loadMySQL'
+    name = "connect_to_mysql"

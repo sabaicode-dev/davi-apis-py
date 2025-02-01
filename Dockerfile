@@ -9,17 +9,18 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libssl-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container
+# Copy only the requirements file first (to leverage Docker layer caching)
 COPY requirements.txt /app/
 
 # Upgrade pip and install Python dependencies
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy the entire project into the container
 COPY . /app/

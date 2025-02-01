@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     "image_visualize",
     "aigeneratedes",
     "connect_to_mongodb",
-    "loadMySQL",
+    "connect_to_mysql",
     "loadSQLServer",
     "loadPostgresSQL",
     "loadMariadb",
