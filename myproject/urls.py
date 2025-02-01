@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import permissions
@@ -23,46 +24,45 @@ from drf_yasg import openapi
 client_app = "http://localhost:3000"
 
 schema_view = get_schema_view(
-    openapi.Info(title="Davi Python API",
-                 default_version='v1',
-                 description=f"Test Davi Python backend. Visit [Support]({
-                     client_app}/contact) for details.",
-                 terms_of_service=f"{client_app}/service",
-                 contact=openapi.Contact(
-                     email="info@sabaicode.com",
-                     name="Davi Support",
-                     url=f"{client_app}/"
-                 ),
-                 license=openapi.License(
-                     name="Copyright © 2024 DAVI. All rights reserved."),
-                 ),
+    openapi.Info(
+        title="Davi Python API",
+        default_version="v1",
+        description=f"Test Davi Python backend. Visit [Support]({
+            client_app
+        }/contact) for details.",
+        terms_of_service=f"{client_app}/service",
+        contact=openapi.Contact(
+            email="info@sabaicode.com", name="Davi Support", url=f"{client_app}/"
+        ),
+        license=openapi.License(name="Copyright © 2024 DAVI. All rights reserved."),
+    ),
     public=True,
     # permissions.AllowAny = allows all :)
     permission_classes=(permissions.AllowAny,),
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/v1/', include('scrape.api.urls')),
-    path('api/v1/', include('cleansing.api.urls')),
-    path('api/v1/', include('file.api.urls')),
-    path('metafile/', include('metafile.api.urls')),
-    path('api/v1/', include('project.api.urls')),
-    path('api/v1/', include('visualization.api.urls')),
-    path('api/v1/', include('image_visualize.api.urls')),
-    path('api/v1/', include('aigeneratedes.api.urls')),
-    path('api/v1/notifications/', include('notification_app.api.urls')),
-    path('readData_MongoDB/api/v1/', include('readData_MongoDB.api.urls')),
-    path('load_MySQL/api/v1/', include('loadMySQL.api.urls')),
-    path('load_SQLServer/api/v1/', include('loadSQLServer.api.urls')),
-    path('loadPostgresSQL/api/v1/', include('loadPostgresSQL.api.urls')),
-    path('loadMariadb/api/v1/', include('loadMariadb.api.urls')),
-
+    path("admin/", admin.site.urls),
+    path("api/v1/", include("scrape.api.urls")),
+    path("api/v1/", include("cleansing.api.urls")),
+    path("api/v1/", include("file.api.urls")),
+    path("metafile/", include("metafile.api.urls")),
+    path("api/v1/", include("project.api.urls")),
+    path("api/v1/", include("visualization.api.urls")),
+    path("api/v1/", include("image_visualize.api.urls")),
+    path("api/v1/", include("aigeneratedes.api.urls")),
+    path("api/v1/", include("connect_to_mongodb.api.urls")),
+    path("api/v1/notifications/", include("notification_app.api.urls")),
+    path("load_MySQL/api/v1/", include("loadMySQL.api.urls")),
+    path("load_SQLServer/api/v1/", include("loadSQLServer.api.urls")),
+    path("loadPostgresSQL/api/v1/", include("loadPostgresSQL.api.urls")),
+    path("loadMariadb/api/v1/", include("loadMariadb.api.urls")),
     # Swagger URLs
-    path('swagger/', schema_view.with_ui('swagger',
-                                         cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc',
-                                       cache_timeout=0), name='schema-redoc'),
-    path('swagger.json', schema_view.without_ui(
-        cache_timeout=0), name='schema-json'),
+    path(
+        "swagger/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+    path("swagger.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
 ]

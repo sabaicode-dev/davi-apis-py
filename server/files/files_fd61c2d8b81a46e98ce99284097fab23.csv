@@ -1,0 +1,7 @@
+_id,project_id,filename,file,size,type,created_at,uuid,is_original,is_deleted,is_sample,original_file_id
+679d7c1b3e97ea863879d4b2,679c7fe4cc628f7925ea9013,listings (1).csv,listings (1).csv,9646905,csv,2025-02-01 01:42:51.465,5cb089b2-ab9d-40ee-9946-c6defac580be,True,False,False,
+679d9ad43e97ea863879d4c5,679c7fe4cc628f7925ea9013,720b0b0e60ab4729be9f603a1a76d0b2.csv,720b0b0e60ab4729be9f603a1a76d0b2.csv,2134,csv,2025-02-01 03:53:56.114,38e932fc-f64f-4b85-b475-b0e4611da873,True,False,False,
+679d9e33d8b9145f4e7e5f70,679c7fe4cc628f7925ea9013,14b2a5acdd154897a2c516c2a8b7feaf.csv,14b2a5acdd154897a2c516c2a8b7feaf.csv,594,csv,2025-02-01 04:08:19.974,83f9f1e6-dfe1-430e-8c14-2e76aca1b1d0,True,False,False,
+679da0dfd8b9145f4e7e5f73,679c7fe4cc628f7925ea9013,projects_bdf5cb3d69e64f308958f78b4a4b36ed.csv,projects_bdf5cb3d69e64f308958f78b4a4b36ed.csv,151,csv,2025-02-01 04:19:43.206,8c75e151-ce7d-45ef-b3cd-af1598e4acf2,True,False,False,
+679da623801c36fdce4f2c0a,679c7fe4cc628f7925ea9013,projects_ddca67cc227c4f9792dab2b3d4ce0bd8.csv,projects_ddca67cc227c4f9792dab2b3d4ce0bd8.csv,151,csv,2025-02-01 04:42:11.765,a1daca78-cab8-4af7-a625-57697ce3a399,True,False,False,
+679da7d09d4d5d5ead8d7f18,679c7fe4cc628f7925ea9013,projects_ee29686dfc3d41d48593c841dd7a2172.csv,projects_ee29686dfc3d41d48593c841dd7a2172.csv,151,csv,2025-02-01 04:49:20.726,6fdcaad7-fee6-47d1-8c40-45069795b369,True,False,False,
